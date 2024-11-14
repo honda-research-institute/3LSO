@@ -1,0 +1,42 @@
+{
+
+  "sim_params": 
+    {
+    "dt":0.1,
+    "control_horizon":20,
+    "state_dim": 4,
+    "control_dim":2,
+    "time_horizon":15
+    },
+
+  "prediction_params":
+    {
+    "num_predictions":3,
+    "pred_cov":0.001
+    },
+
+  "optimization_params":
+    {
+    "slack_weight": 1e8,
+    "barrier_weight": 1e2,  
+    "goal": [140.0,3.3,0.0],
+    "goal_lane":3.3,
+    "goal_heading": 0.0,
+    "comfort_weights": [0.0,0.0,4e1,1e-1],
+    "control_weights": [1e1,1e3],
+    "running_cost_weights": [0.0,1e1,1e2,0.0]
+    },
+
+    "test_optimization_params":
+    {
+    "slack_weight": 1e8,
+    "barrier_weight": 1e2,  
+    "goal": [140.0,3.3,0.0],
+    "goal_lane":3.3,
+    "goal_heading": 0.0,
+    "comfort_weights": [0.0,0.0,8e1,1e-1],
+    "control_weights": [1e1,1e3],
+    "running_cost_weights": [0.0,1e2,1e3,0.0]
+    }
+
+}

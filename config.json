@@ -1,0 +1,61 @@
+{
+    "scenario":
+    {
+        "follow":
+        {
+            "spawn_longitude":20,
+            "spawn_latitude": 3.5,
+            "vehicles": [[10,3.5,0,3],[30,3.5,0,1]]
+        },
+        "merge":
+        {
+            "spawn_longitude":20,
+            "spawn_latitude": 7,
+            "vehicles": [[2,3.5,0,3],[10,0,0,3],[15,3.5,0,3],[32,0,0,3],[26,3.5,0,3],[40,3.5,0,3]]
+        }
+        
+    },
+    "simulation":{
+        "dt" : 0.3,
+        "SIM_TIME" : 50
+    },
+    "planning":{
+        "PLANNING_STEPS" : 30,
+        "USE_SPLINE": true,
+        "TARGET_SAMPLES" : 20,
+        "TARGET_DIST" : 100,
+        "TARGET_ANGLE_RANGE" : 30
+    },
+    "prediction":{
+        "S" : 6,
+        "confidence" : 0.7,
+        "prediction_model" : "SGAN_Student"
+    },
+    "control":{
+        "j_min" : -0.5,
+        "j_max" : 0.5,
+        "sr_min" : -0.4,
+        "sr_max" : 0.4,
+        "N_j" : 11,
+        "N_sr" : 11,
+        "min_dist" : 5,
+        "vmax" : 3,
+        "w_v": 0.5,
+        "gamma" : 0.9,
+        "alpha_g" : 1,
+        "alpha_s" : 0.01,
+        "alpha_r" : 10
+    },
+
+    "plot":
+    {
+        "plot_vehicles_gif": true,
+        "plot_vehicles" : false,
+        "plot_cost" : false,
+        "plot_u": false,
+        "plot_model_accuracy":false,
+        "plot_cost_star": false,
+        "savefig": false,
+        "k" : 50
+    }
+}

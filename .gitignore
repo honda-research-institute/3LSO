@@ -1,3 +1,6 @@
+/3LSO
+/videos
+/logs
 *.pyc
 *.egg-info
 /.idea/

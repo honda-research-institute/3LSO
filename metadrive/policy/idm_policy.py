@@ -209,10 +209,10 @@ class IDMPolicy(BasePolicy):
     LANE_CHANGE_SPEED_INCREASE = 10
     SAFE_LANE_CHANGE_DISTANCE = 15
     MAX_LONG_DIST = 30
-    MAX_SPEED = 100  # km/h
+    MAX_SPEED = 3  # km/h
 
     # Normal speed
-    NORMAL_SPEED = 30  # km/h
+    NORMAL_SPEED = 3  # km/h
 
     # Creep Speed
     CREEP_SPEED = 5

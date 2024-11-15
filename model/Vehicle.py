@@ -8,6 +8,7 @@ class Vehicle:
         self.veh_length = ego.LENGTH
         self.veh_width = ego.WIDTH
         self.dt = manual_config['simulation']["dt"]
+        self.l_r = 0.5
 
     # def update_state(self, u):
     #     """Return an updated state from the current state x0 with the action u

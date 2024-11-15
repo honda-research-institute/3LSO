@@ -20,7 +20,7 @@ class RTTO:
         self.goal_angle = np.deg2rad(manual_config['planning']["TARGET_ANGLE_RANGE"])
         self.lane_tendency = None
         
-    def get_target(self, x_cur, xhat_predictions, goal):      
+    def get_target(self, x_cur, xhat_predictions, goal, lane_tendency):      
 
         p1 = np.repeat(x_cur[np.newaxis,:3],self.N_goal_samples,axis=0) #(N,3)
         
@@ -43,7 +43,7 @@ class RTTO:
         collision = self.collision_check(waypoints, xhat_predictions) 
         spatial_risks = self.spatial_risk(waypoints, xhat_predictions, x_cur[3]) #(N_wp, N_pred)
         
-        self.waypoints, self.row_idx, self.col_idx = self.get_optimal_sample_path(waypoints,spatial_risks,goal,collision) #(N_pred,3)
+        self.waypoints, self.row_idx, self.col_idx = self.get_optimal_sample_path(waypoints,spatial_risks,goal,collision, lane_tendency) #(N_pred,3)
         
         return self.waypoints[self.row_idx, self.col_idx,:2].tolist()
 
@@ -104,7 +104,7 @@ class RTTO:
         min_dist = np.clip(np.min(dists, axis=(3, 4, 0, 2)),1e-2,None) #(Npred, Nsample)
         return np.exp(-1*min_dist**2)#1/(10*min_dist**2)#
     
-    def get_optimal_sample_path(self,waypoints,risk,goal,collision):
+    def get_optimal_sample_path(self,waypoints,risk,goal,collision,lane_tendency):
         '''
         waypoints : array(N_wp,N_pred,3)
         risk : array (N_wp, N_pred)
@@ -115,7 +115,7 @@ class RTTO:
         # path_cost = lane_deviation - forward_propagation/np.max(forward_propagation)
         path_cost = 2*self.normalize(lane_deviation) - self.normalize(forward_propagation)
         #! START HERE. 
-        costs = (1-self.lane_tendency)* risk  + self.lane_tendency* path_cost
+        costs = (1-lane_tendency)* risk  + lane_tendency* path_cost
         costs_sum = np.mean(costs,axis=1)
         r = np.argmin(costs_sum)
         # r, c = np.unravel_index(np.argmin(costs), costs.shape)

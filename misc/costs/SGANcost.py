@@ -26,10 +26,10 @@ class SGAN_cost_function(cost_function):
         else: 
             raise Exception("Only SGAN_Student and SGAN_Teacher is supported.")
         
-        with ThreadPoolExecutor(max_workers=1) as executor:
-            futures = [executor.submit(SganPredictor, os.path.join(sgan_source_path, 'model', self.model.sgan_model), self.S) for _ in range(1)]
-            self.predictors = [future.result() for future in futures]
-        # self.predictor = SganPredictor(os.path.join(sgan_source_path,'model', self.model.sgan_model), self.S) # NN predictor 
+        # with ThreadPoolExecutor(max_workers=1) as executor:
+        #     futures = [executor.submit(SganPredictor, os.path.join(sgan_source_path, 'model', self.model.sgan_model), self.S) for _ in range(1)]
+        #     self.predictors = [future.result() for future in futures]
+        self.predictor = SganPredictor(os.path.join(sgan_source_path,'model', self.model.sgan_model), self.S) # NN predictor 
     def evaluate_cost(self,x_cur, X, x_history, xhat_history,u,target,goal,cv_predictions):
         '''
         X: Array of (N_j x N_sr, 4): array of all possible states that are induced by applying every action pairs to current state x_cur.
@@ -68,12 +68,11 @@ class SGAN_cost_function(cost_function):
             vref = xhat_history[reference_vehicle_idx,-1,3]
         except:
             vref = self.w_v * vlim # ? Should we obtain desired velocity profile
-
-        # # #! TESTING BELOW 
+ 
         Nveh = np.sum(~preceding_idxs) # only consider vehicles that are not preceding the ego.
         x_history = np.repeat(x_history,self.Nsample,axis=1)[:,:,:2] # (H,Nsample,2)
-        self.xhat_history = np.repeat(xhat_history[~preceding_idxs,:-1],self.Nsample,axis=0)
-        self.xhat_history = np.transpose(self.xhat_history,[1,0,2]) # (H,Nsample*Nveh,4)
+        xhat_history_temp = np.repeat(xhat_history[~preceding_idxs,:-1],self.Nsample,axis=0)
+        xhat_history_temp_2 = np.transpose(xhat_history_temp,[1,0,2]) # (H,Nsample*Nveh,4)
         u = u+self.du*self.dt
         du = self.du
         x_reference = X[np.newaxis,:,:]
@@ -90,20 +89,21 @@ class SGAN_cost_function(cost_function):
             # du = np.random.uniform(-0.4,0.4,du.shape)
             # u = u+du*self.dt
             # u = u*0
-        
-        xhat_predictions = self.predictor.predict_batch(x_history,self.xhat_history[:,:,:2],Nveh, self.Nsample ,self.dt, self.model.dt, x_reference)
+        try:    
+            xhat_predictions = self.predictor.predict_batch(x_history,xhat_history_temp_2[:,:,:2],Nveh, self.Nsample ,self.dt, self.model.dt, x_reference)
+        except:
+            print("1")
         obstacle_positions = xhat_predictions[:,1:] # 0th vehicle is the ego vehicle
         
         cv_predictions = np.repeat(cv_predictions[:,:,np.newaxis],121,axis=2)
         cv_predictions[~preceding_idxs] = np.transpose(obstacle_positions,[1,0,2,3])
         cv_predictions = np.transpose(cv_predictions,[1,0,2,3])
         obstacle_positions = cv_predictions
-        # # #! TESTING ENDS 
+        
         spatial_risk,min_dist,lane_dist = self.spatial_risk(x_reference,obstacle_positions) #(Npred,Nsample)
         # collision_risk = self.collision_check(x_reference, obstacle_positions)
-        risk_scalar = np.tanh((spatial_risk/self.spatial_tolerance_ub)**2) #(Npred,Nsample); for convex sum of risk and target tracking
-        j = np.append(np.zeros((self.S-1,self.Nsample)), self.j[np.newaxis,:],axis=0) 
-        sr = np.append(np.zeros((self.S-1,self.Nsample)) ,self.sr[np.newaxis,:],axis=0)
+        # j = np.append(np.zeros((self.S-1,self.Nsample)), self.j[np.newaxis,:],axis=0) 
+        # sr = np.append(np.zeros((self.S-1,self.Nsample)) ,self.sr[np.newaxis,:],axis=0)
         # track_cost = (
         #     50*np.tanh(0.1*((target[0] - x_reference[:,:,0]) ** 2 + (target[1] - x_reference[:,:,1]) ** 2)) # target position tracking
         #     + 20*(x_reference[:,:,3] - vref) ** 2 # target velocity tracking 
@@ -264,7 +264,7 @@ class SGAN_cost_function(cost_function):
         R_veh = np.transpose(self.rotation_matrix(
             xhat_predictions[:, :, :, 2]), [2, 3, 4, 0, 1])
 
-        cov =  np.array([[self.veh_length*self.length_scalar, 0], [0, self.veh_width*self.width_scalar]])
+        cov =  np.array([[self.veh_length, 0], [0, self.veh_width]])
         cov_veh = R_veh @ cov @ np.transpose(R_veh, [0, 1, 2, 4, 3])
         cov_veh_inv = np.power(self.confidence, np.arange(0, v_bar.shape[2], 1))[:,np.newaxis,np.newaxis]*np.linalg.pinv(cov_veh)  # (Npred,N_veh,Nsample,2,2)
 

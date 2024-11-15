@@ -35,10 +35,10 @@
         "prediction_model" : "SGAN_Teacher"
     },
     "control":{
-        "j_min" : -0.5,
-        "j_max" : 0.5,
-        "sr_min" : -0.4,
-        "sr_max" : 0.4,
+        "j_min" : -10,
+        "j_max" : 10,
+        "sr_min" : -1,
+        "sr_max" : 1,
         "N_j" : 11,
         "N_sr" : 11,
         "min_dist" : 5,

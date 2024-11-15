@@ -109,9 +109,9 @@ class Predictor:
 
 
     def predict_batch(self, x_history, xhat_history, Nveh, Nsamples, planning_dt, model_dt, x_reference=None):
-        skip_cols = int(model_dt/planning_dt) #! choose model_dt only 0.3 for now .  
-        x_history = x_history[::skip_cols] # (H,Nsample,2)
-        xhat_history = xhat_history[::skip_cols] # (H,Nveh*Nsample,2)
+        # skip_cols = int(model_dt/planning_dt) #! choose model_dt only 0.3 for now .  
+        # x_history = x_history[::skip_cols] # (H,Nsample,2)
+        # xhat_history = xhat_history[::skip_cols] # (H,Nveh*Nsample,2)
         obs_traj = np.append(x_history, xhat_history,axis=1) #(H,(Nveh+1)*Nsamples,2)
         try:
             x_reference = x_reference[:,:,:2]-np.append(x_history[-1][np.newaxis,:,:],x_reference[:-1,:,:2],axis=0)
@@ -133,10 +133,10 @@ class Predictor:
         
         pred_traj = np.reshape(np.array(pred_traj),(self.pred_len, Nveh+1,Nsamples,2))  
         obs_traj = np.reshape(obs_traj[-1],(Nveh+1,Nsamples,2))[np.newaxis,:,:,:]
-        dx0 = (pred_traj[:1,:,:,0]-obs_traj[:1,:,:,0]) * 1/skip_cols #the model_dt->planning_dt interpolation 
-        dy0 = (pred_traj[:1,:,:,1]-obs_traj[:1,:,:,1]) * 1/skip_cols # (Nveh+1, Nsamples)
-        dx = np.append(dx0,(pred_traj[1:,:,:,0]-pred_traj[:-1,:,:,0])*1/skip_cols,axis=0)
-        dy = np.append(dy0,(pred_traj[1:,:,:,1]-pred_traj[:-1,:,:,1])*1/skip_cols,axis=0)
+        dx0 = (pred_traj[:1,:,:,0]-obs_traj[:1,:,:,0]) #the model_dt->planning_dt interpolation 
+        dy0 = (pred_traj[:1,:,:,1]-obs_traj[:1,:,:,1]) * 1 # (Nveh+1, Nsamples)
+        dx = np.append(dx0,(pred_traj[1:,:,:,0]-pred_traj[:-1,:,:,0]),axis=0)
+        dy = np.append(dy0,(pred_traj[1:,:,:,1]-pred_traj[:-1,:,:,1]),axis=0)
         psi = np.arctan2(dy,dx)
         v = np.hypot(dx,dy)/planning_dt
         #TODO for when planning_dt \neq model_dt, the skip_cols in the dxdy part need to be revised

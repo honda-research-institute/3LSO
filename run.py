@@ -19,7 +19,8 @@ import json
 import logging
 from datetime import datetime
 from main.scenarios import ScenarioEnv
-
+from EgoVehicle import EgoVehicle
+import torch
       
 def control(ego, vehicles, t):
     # x0 = np.array()
@@ -43,47 +44,47 @@ def main(args):
     env = ScenarioEnv(dict(map="S", log_level=50, traffic_density=0, physics_world_step_size = DT/5), 
                       args, manual_config) ## dt/5 due to decision_repeat = 5.
     env.reset()
-   
-    # TODO: load SGAN predictor for Ego
+    vehicles = env.engine.traffic_manager.vehicles
+    EGO = EgoVehicle(vehicles[0], vehicles[1:], args, manual_config) 
  
     # * RUN Simulation
     comp_time_array = []
     reward_array = []
 
     movie3d = []
-    try:
-        frames = []
-        logging.info("---STARTING SIMULATION---")
-        for t in range(int(SIM_TIME/DT)):
-            vehicles = env.engine.traffic_manager.vehicles
-            ego = vehicles[0]
-            # print(ego.lane,ego.lane.position,ego.lane.heading)
-            # print(ego.lane.local_coordinates(ego.position))
+    # try:
+    frames = []
+    logging.info("---STARTING SIMULATION---")
+    for t in range(int(SIM_TIME/DT)):
+        vehicles = env.engine.traffic_manager.vehicles
+        ego = vehicles[0]
+        EGO.step(ego)
 
-            tic = time.time()
-            #! ERASE LATER
-            #! steer,acc \in [-1,1].
-            #! us = S_max * steer; S_max typically 40-50, depending on the vehicle
-            #! ua = Fmax * acc; F_max
-            steer, acc = control(ego, vehicles, t)
-            toc = time.time()
-            comp_time_array.append(toc - tic)
-            o, r, term, trunc, info = env.step([steer, acc])
+        tic = time.time()
+        #! ERASE LATER
+        #! steer,acc \in [-1,1].
+        #! us = S_max * steer; S_max typically 40-50, depending on the vehicle
+        #! ua = Fmax * acc; F_max
+        steer, acc = EGO.get_control(vehicles[1:])
+        toc = time.time()
+        comp_time_array.append(toc - tic)
+        o, r, term, trunc, info = env.step([steer, acc])
 
-            reward_array.append(r)
+        reward_array.append(r)
 
-            ######## TOP DOWN RENDER #########
-            frame = env.render(mode="topdown",
-                               window=False,
-                               screen_size=(400, 400))
-            frames.append(frame)
+        ######## TOP DOWN RENDER #########
+        frame = env.render(mode="topdown",
+                            window=False,
+                            screen_size=(400, 400))
+        frames.append(frame)
             
-    except:
-        env.close()
+    # except:
+    #     env.close()
 
-    if args.save_gif:
-        generate_gif(frames, "./videos/idmpolicy.gif",duration = 50)
-        Image(open("./videos/idmpolicy.gif", 'rb').read())
+    # if args.save_gif:
+    #     FILENAME = f'{datetime.now().replace(microsecond=0)}_{args.scenario}_{args.object_policy}'
+    #     generate_gif(frames, f"./videos/{FILENAME}.gif",duration = 50)
+    #     Image(open(f"./videos/{FILENAME}.gif", 'rb').read())
 
 
 if __name__ == "__main__":
@@ -96,7 +97,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # * Configure logger
-    LOG_FILENAME = f'./logs/{datetime.now()}.log'
+    LOG_FILENAME = f'./logs/{datetime.now().replace(microsecond=0)}.log'
     FORMAT = '%(asctime)s %(message)s'
     for handler in logging.root.handlers[:]:
         logging.root.removeHandler(handler)

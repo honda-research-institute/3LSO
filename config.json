@@ -5,12 +5,14 @@
         {
             "spawn_longitude":20,
             "spawn_latitude": 3.5,
+            "goal": [0,3.5],
             "vehicles": [[10,3.5,0,3],[30,3.5,0,1]]
         },
         "merge":
         {
             "spawn_longitude":20,
             "spawn_latitude": 7,
+            "goal": [0,3.5],
             "vehicles": [[2,3.5,0,3],[10,0,0,3],[15,3.5,0,3],[32,0,0,3],[26,3.5,0,3],[40,3.5,0,3]]
         }
         
@@ -20,16 +22,17 @@
         "SIM_TIME" : 50
     },
     "planning":{
-        "PLANNING_STEPS" : 30,
+        "T" : 3,
         "USE_SPLINE": true,
         "TARGET_SAMPLES" : 20,
         "TARGET_DIST" : 100,
-        "TARGET_ANGLE_RANGE" : 30
+        "TARGET_ANGLE_RANGE" : 30,
+        "dyn": "CV"
     },
     "prediction":{
         "S" : 6,
         "confidence" : 0.7,
-        "prediction_model" : "SGAN_Student"
+        "prediction_model" : "SGAN_Teacher"
     },
     "control":{
         "j_min" : -0.5,
@@ -39,7 +42,6 @@
         "N_j" : 11,
         "N_sr" : 11,
         "min_dist" : 5,
-        "vmax" : 3,
         "w_v": 0.5,
         "gamma" : 0.9,
         "alpha_g" : 1,

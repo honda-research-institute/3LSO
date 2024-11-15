@@ -5,8 +5,7 @@ from IPython.display import clear_output, Image
 from metadrive.policy.idm_policy import IDMPolicy
 from metadrive.policy.expert_policy import ExpertPolicy
 
-from math import cos, sin, radians
-
+import numpy as np
 
 class ScenarioManager(BaseManager):
     def __init__(self, args,manual_config):
@@ -35,9 +34,9 @@ class ScenarioManager(BaseManager):
                 
     def after_step(self):
         if self.episode_step == self.generate_ts:
-            for x,y,phi,v in self.manual_config["scenario"][self.scenario]["vehicles"]:
+            for x,y,phi,vel in self.manual_config["scenario"][self.scenario]["vehicles"]:
                 v = self.spawn_object(DefaultVehicle, vehicle_config = dict(), position = [x,y], heading = phi)
-                v.set_velocity([1,0,v])
+                v.set_velocity([vel*np.cos(phi),vel*np.sin(phi)])
                 self.generated_v.append(v)                
                 
                         # Assign IDMPolicy to each vehicle if needed

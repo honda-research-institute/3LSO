@@ -13,6 +13,7 @@ from metadrive.utils import generate_gif
 from panda3d.core import LVector2f, Point2, LVecBase4f
 import matplotlib.pyplot as plt
 from metadrive.policy.expert_policy import ExpertPolicy
+from metadrive.policy.lange_change_policy import LaneChangePolicy
 from metadrive.policy.idm_policy import IDMPolicy
 import time
 import json
@@ -21,13 +22,103 @@ from datetime import datetime
 from main.scenarios import ScenarioEnv
 from EgoVehicle import EgoVehicle
 import torch
-      
-def control(ego, vehicles, t):
-    # x0 = np.array()
-    x_hat = np.array([[vehicle.position[0], vehicle.position[1],
-                     vehicle.heading_theta, vehicle.speed] for vehicle in vehicles])  # (Nveh, 4)
+import matplotlib.pyplot as plt
+import math
 
-    return 10, 0.02
+class PIDController:
+    def __init__(self, kp, ki, kd):
+        self.kp = kp
+        self.ki = ki
+        self.kd = kd
+        self.prev_error = 0
+        self.integral = 0
+        self.alpha_prev = 0
+
+    def compute_control(self, target, current):
+        # Calculate error
+        error = (target - current)
+        # Proportional term
+        proportional = self.kp * error
+        # Integral term
+        self.integral += error
+        integral = self.ki * self.integral * 0.3
+        # Derivative term
+        derivative = self.kd * (error - self.prev_error)/0.3
+        # Save error for next iteration
+        self.prev_error = error
+        
+        # Return control output
+        return proportional + integral + derivative
+    
+    def calculate_throttle(self, v_desired, v, dt=0.3):
+        """Calculate throttle using PID control"""
+        kp = 0.03
+        ki = 0.001
+        kd = 0.1
+
+        if dt <= 0:
+            return 0 
+
+        v_error = v_desired - v
+        self.integral += v_error
+
+        # PID terms
+        k_term = kp * v_error
+        i_term = ki * self.integral * dt
+        d_term = kd * (v_error - self.prev_error) / dt
+
+        # Calculate throttle and clamp to [0, 1]
+        throttle = np.clip(k_term + i_term + d_term, 0,1)
+
+        # Update variables
+        self.prev_error = v_error
+        
+        return throttle
+    
+    def calculate_steering(self, ego_pos, yaw, waypoints, speed, dt = 0.3):
+        """Calculate steering angle using PurePursuit, Stanley, or MPC"""
+        steering = 0
+        lookahead_distance = 2
+        x,y = ego_pos
+        goal_idx = self.get_goal_waypoint_index(x, y, waypoints, lookahead_distance)
+        
+        
+        v1 = [x-waypoints[1,0],y-waypoints[1,1]]
+        v2 = [np.cos(yaw), np.sin(yaw)]
+        try:
+            alpha = self.get_alpha(v1, v2, lookahead_distance)
+        except:
+            alpha = self.alpha_prev
+        self.alpha_prev = alpha
+        steering = self.get_steering_direction(v1, v2) * math.atan((2 * 0.3 * math.sin(alpha)) / (0.3 * speed))
+        return steering
+    
+    def get_goal_waypoint_index(self, x, y, waypoints, lookahead_distance):
+        # Placeholder: Return the index of the closest waypoint ahead
+        for i, waypoint in enumerate(waypoints.tolist()):
+            if abs(self.distance_2d(x, y, waypoint[0], waypoint[1]) - lookahead_distance) <= 1e-2:
+                return i
+        return len(waypoints) - 1
+    
+    def get_alpha(self, v1, v2, lookahead_distance):
+        inner_prod = v1[0] * v2[0] + v1[1] * v2[1]
+        return math.acos(inner_prod/lookahead_distance)
+    
+    def get_steering_direction(self, v1, v2):
+        # Placeholder: Determine steering direction (left or right)
+        return 1 if v1[0] * v2[1] - v1[1] * v2[0] > 0 else -1
+    
+    def distance_2d(self, x1, y1, x2, y2):
+        return math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+
+def calculate_target_angle(vehicle_position, waypoints):
+    """
+    Calculate the desired angle to the next waypoint.
+    """
+    closest_waypoint = waypoints
+    target_vector = np.array(closest_waypoint) - np.array(vehicle_position)[:2]
+    desired_angle = np.arctan2(target_vector[1], target_vector[0])
+    return desired_angle
 
 
 def main(args):
@@ -43,9 +134,12 @@ def main(args):
     # * Initialize environment
     env = ScenarioEnv(dict(map="S", log_level=50, traffic_density=0, physics_world_step_size = DT/5), 
                       args, manual_config) ## dt/5 due to decision_repeat = 5.
-    env.reset()
+    env.reset(seed=0)
     vehicles = env.engine.traffic_manager.vehicles
+    # vehicles[0].max_speed_m_s = 3
     EGO = EgoVehicle(vehicles[0], vehicles[1:], args, manual_config) 
+    pid_steering = PIDController(.3, 0.05, 0.01)
+    pid_throttle = PIDController(8, .2, 1)
  
     # * RUN Simulation
     print("--------------Start running simulations--------------")
@@ -58,20 +152,38 @@ def main(args):
         for t in range(int(SIM_TIME/DT)):
             vehicles = env.engine.traffic_manager.vehicles
             ego = vehicles[0]
-            EGO.step(ego)
+            # EGO.step(ego)
 
             tic = time.time()
-            acc, steer = EGO.get_control(vehicles[1:])
+            # waypoints = EGO.get_control(vehicles[1:])
             toc = time.time()
+            
+            waypoints = np.array([
+                    [23,7],[ego.position[0]+ego.velocity[0]*1.5,3.5]
+                ])
             comp_time_array.append(toc - tic)
+            
+            # Calculate control inputs
+            # target_angle = calculate_target_angle(ego.position[:2], [x,y])
+            # max_steering = np.deg2rad(ego.config["max_steering"])
+            speed = np.linalg.norm(ego.velocity)
+            steer = pid_steering.calculate_steering(ego.position, ego.heading_theta, waypoints, speed)
+            
+            # Set throttle (speed control to maintain constant speed)
+            target_speed = 3  # Target speed in m/s
+            acc = pid_throttle.calculate_throttle(v_desired = target_speed, v = speed)#/ego.config["max_engine_force"]
             o, r, term, trunc, info = env.step([steer, acc])
+            # ego.set_state([x,y])
 
             reward_array.append(r)
 
             ######## TOP DOWN RENDER #########
             frame = env.render(mode="topdown",
                                 window=False,
+                                # text={"command": f"{command1},{command2}"},
                                 screen_size=(400, 400))
+            # plt.imshow(frame)
+            # plt.show()
             frames.append(frame)
         
         logging.info(f"Average control compute time is {np.mean(comp_time_array)}")
@@ -87,8 +199,8 @@ def main(args):
 if __name__ == "__main__":
     # * Parsing simulation configuration
     parser = argparse.ArgumentParser()
-    parser.add_argument("--scenario", type=str, default="follow", help="[merge, follow]")
-    parser.add_argument("--object_policy", type=str, default="CV", help="[CV, IDM]")
+    parser.add_argument("--scenario", type=str, default="testing", help="[merge, follow]")
+    parser.add_argument("--object_policy", type=str, default="IDM", help="[CV, IDM]")
     parser.add_argument("--save_gif", type=bool,
                         default=True, help="Select True to save gif")
     args = parser.parse_args()

@@ -271,8 +271,8 @@ class SGAN_cost_function(cost_function):
         dist = 1/(self.alpha_g + p_bar[:,:,:,np.newaxis,:]@cov_veh_inv@p_bar[:,:,:,:,np.newaxis]) #(Npred,Nveh,Nsample,1)
         skew = 1 / (1+np.exp(self.alpha_s*p_bar[:,:,:,np.newaxis,:]@v_veh[:,:,:,:,np.newaxis]))
 
-        p_road_1 = np.array([[0],[-0.5]])
-        p_road_2 = np.array([[0],[3.5]])
+        p_road_1 = np.array([[0],[-1]])
+        p_road_2 = np.array([[0],[9]])
         p_bar_lane_1 = (p_ego[:,0,:,:,np.newaxis] - p_road_1)[:,:,1]
         p_bar_lane_2 = (p_road_2 - p_ego[:,0,:,:,np.newaxis])[:,:,1]
 

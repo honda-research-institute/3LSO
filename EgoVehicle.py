@@ -27,6 +27,7 @@ class EgoVehicle(Vehicle):
         self.goal = manual_config["scenario"][scenario]["goal"]
         self.MAX_STEERING = ego.max_steering
         self.MAX_THROTTLE = ego.config["max_engine_force"]
+        self.lane_tendencies = manual_config["planning"]["lane_tendencies"]
         
         #* Planner initialization
         self.T = manual_config["planning"]["T"] # [s]
@@ -59,7 +60,7 @@ class EgoVehicle(Vehicle):
         
         #* Load the cost function (including the SGAN model)
         self.cost_functions = {
-            lane_tendency: cost_function(ego, manual_config) for lane_tendency in [0,0.5,1]
+            lane_tendency: cost_function(ego, manual_config) for lane_tendency in self.lane_tendencies
         }
         self.executor = ThreadPoolExecutor(max_workers = 5)
         
@@ -111,7 +112,7 @@ class EgoVehicle(Vehicle):
         self.cv_predictions = xhat_predictions
         try:
             # The predictions from the previous cost evaluation is available only after 1st step
-            # Override CV predictions with SGAN predictions
+            # Override CV predictions with SGAN predictions if available
             xhat_predictions = self.xhat_predictions 
         except: 
             pass
@@ -129,8 +130,10 @@ class EgoVehicle(Vehicle):
     def worker_function(self, lane_tendency, vehicles, xhat_history, x_history, u):
         cost_fn = self.cost_functions[lane_tendency]
         u_plan = [u]
+        trajectory = []
         trajectory_cost = 0
         for k in range(int(self.T / self.dt)):
+
             # OPTIMIZATION 1: Target selection
             vehicles = Vehicle.forward_true(vehicles, x_history[-1], dt=self.dt, dyn=self.dyn)
             xhat_history = np.append(xhat_history, vehicles[:, np.newaxis, :], axis=1)
@@ -140,7 +143,6 @@ class EgoVehicle(Vehicle):
             u_candidates = self.actions_arr * self.dt + u
             x_candidates = Vehicle.forward(x_history[-1], u_candidates, self.dt)
             cost, spatial_risk = cost_fn.evaluate_cost(x_history[-1], x_candidates, x_history,xhat_history,u,target,self.goal,self.cv_predictions)
-
 
             if np.all(cost == cost[0]):
                 istar = int(((self.N_j * self.N_sr) - 1) / 2)
@@ -155,12 +157,13 @@ class EgoVehicle(Vehicle):
             u_plan.append([a, dl])
 
             x = self.update_state(x_history[-1], u_plan[-1], ustar)
+            trajectory.append(x)
             x_history = np.append(x_history, np.array(x)[np.newaxis, :], axis=0)
 
             current_cost = self.evaluate_current_state(a, dl, ustar[0], ustar[1], x, xhat_history[:,-1])
             trajectory_cost += 0.9**k * current_cost
 
-        return u_plan, trajectory_cost
+        return u_plan, trajectory, trajectory_cost
     
     def get_control(self, vehicles):
         vehicles = np.array([[vehicle.position[0], vehicle.position[1],
@@ -169,6 +172,7 @@ class EgoVehicle(Vehicle):
             self.xhat_history = np.append(self.xhat_history, vehicles[:, np.newaxis], axis=1)
         except:
             self.xhat_history = vehicles[:, np.newaxis]  # (Nveh, 1, 4)
+        
         xhat_history = self.xhat_history.copy()
         x_history = self.x_history.copy()
         u = self.u.copy()
@@ -176,17 +180,20 @@ class EgoVehicle(Vehicle):
         # Multithreading for lane_tendency
         futures = [
             self.executor.submit(self.worker_function, lane_tendency, vehicles, xhat_history, x_history, u)
-            for lane_tendency in [0,0.5,1]
+            for lane_tendency in self.lane_tendencies
         ]
 
         results = [future.result() for future in futures]
 
         # Combine results (you may need to decide how to aggregate u_plan and trajectory_cost)
         u_candidates = np.array([result[0] for result in results])
-        trajectory_costs = np.array([result[1] for result in results])
+        trajectory = np.array([result[1] for result in results])
+        trajectory_costs = np.array([result[2] for result in results])
+        
+        # Optimization 3: lane_tendency 
         istar = np.argmin(trajectory_costs)
         
-        return u_candidates[istar,1,0], np.rad2deg(u_candidates[istar,1,1])#/self.MAX_THROTTLE
+        return trajectory[istar]#trajectory[istar][1,2], trajectory[istar][1,3], #u_candidates[istar,2,0], np.rad2deg(u_candidates[istar,2,1]) #/self.MAX_THROTTLE
 
     def predict(self, xhat_history, S):
         """

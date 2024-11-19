@@ -30,16 +30,7 @@ class RTTO:
         # waypoints = get_spline(p1,p2,x_cur[3],self.dt,xhat_predictions.shape[1], vectorize = True)
         waypoints = get_geodesic(p1,p2,x_cur[3],self.dt) #(N_pred,N_wp,3)
         waypoints = np.transpose(waypoints[:self.S],[1,0,2]) #(N_wp,N_pred,3)
-        #* Sampling waypoints along the spatial lattice
-        # p2 = np.repeat(np.array([x_cur[0]+int(5*x_cur[3]),x_cur[1],0])[np.newaxis,:],N,axis=0)
-        # p2[:,1] = np.linspace(p2[0,1],goal[1],N) # p2 (N,3) 
-        # waypoints = get_spline(p1,p2,x_cur[3],self.dt,xhat_predictions.shape[1])
-        # waypoints = np.array(waypoints) #(N_wp,N_pred,3)
-        #* Sampling waypoints along the desired lane
-        # p2 = np.repeat(np.array([x_cur[0]+int(10*x_cur[3]),goal[1],0])[np.newaxis,:],N,axis=0)
-        # p2[:,0] = np.linspace(p2[0,0],p2[0,0]+2*N,N) # p2 (N,3) 
-        # waypoints = get_spline(p1,p2,x_cur[3],self.dt,xhat_predictions.shape[1])
-        # waypoints = np.array(waypoints) #(N_wp,N_pred,3)
+
         collision = self.collision_check(waypoints, xhat_predictions) 
         spatial_risks = self.spatial_risk(waypoints, xhat_predictions, x_cur[3]) #(N_wp, N_pred)
         
@@ -150,8 +141,8 @@ class RTTO:
         dist = 1/(self.alpha_g + np.transpose(p_bar,[0, 1, 2, 4, 3])@cov_veh_inv@p_bar)
         skew = 1 / (1+np.exp(self.alpha_s*np.transpose(p_bar, [0, 1, 2, 4, 3])@v_bar))
 
-        p_road_1 = np.array([[0],[-0.5]])
-        p_road_2 = np.array([[0],[3.5]])
+        p_road_1 = np.array([[0],[-1]])
+        p_road_2 = np.array([[0],[9]])
         p_bar_lane_1 = (p_ego[0] - p_road_1)[:,:,1]
         p_bar_lane_2 = (p_road_2 - p_ego[0])[:,:,1]
         np.clip(p_bar_lane_1,0,None,out=p_bar_lane_1)

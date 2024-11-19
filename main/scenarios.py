@@ -21,7 +21,8 @@ class ScenarioManager(BaseManager):
         if self.generated_v:
             if self.object_policy == "CV":
                 for v in self.generated_v:
-                    v.set_velocity([1,0])
+                    
+                    v.set_velocity(v.last_velocity)
                     # v.before_step([0, 0]) # set action
             elif self.object_policy == "IDM":
                 for v in self.generated_v:
@@ -39,12 +40,12 @@ class ScenarioManager(BaseManager):
                 v.set_velocity([vel*np.cos(phi),vel*np.sin(phi)])
                 self.generated_v.append(v)                
                 
-                        # Assign IDMPolicy to each vehicle if needed
+            # Assign IDMPolicy to each vehicle if needed
             if self.object_policy == "IDM":
                 for v in self.generated_v:
                     self.vehicle_policies[v] = IDMPolicy(v,0)
                     self.vehicle_policies[v].enable_lane_change=False
-                    self.vehicle_policies[v].NORMAL_SPEED = 3 
+                    self.vehicle_policies[v].NORMAL_SPEED = 2
                     self.vehicle_policies[v].MAX_SPEED = 3
         
         elif self.generated_v:
@@ -56,7 +57,9 @@ class ScenarioEnv(MetaDriveEnv):
         self.args = args
         self.manual_config = manual_config
         
-        config["vehicle_config"] = dict(spawn_longitude = manual_config["scenario"][args.scenario]["spawn_longitude"], spawn_lateral = manual_config["scenario"][args.scenario]["spawn_latitude"])
+        config["vehicle_config"] = dict(spawn_longitude = manual_config["scenario"][args.scenario]["spawn_longitude"], 
+                                        spawn_lateral = manual_config["scenario"][args.scenario]["spawn_latitude"],
+                                        spawn_velocity = [1,0])
         super(ScenarioEnv, self).__init__(config)
     
     def setup_engine(self):

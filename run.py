@@ -33,6 +33,7 @@ class PIDController:
         self.prev_error = 0
         self.integral = 0
         self.alpha_prev = 0
+        self.prev_throttle = 0
 
     def compute_control(self, target, current):
         # Calculate error
@@ -68,9 +69,10 @@ class PIDController:
         d_term = kd * (v_error - self.prev_error) / dt
 
         # Calculate throttle and clamp to [0, 1]
-        throttle = np.clip(k_term + i_term + d_term, 0,1)
+        throttle = np.clip(self.prev_throttle + k_term + i_term + d_term, 0,1)
 
         # Update variables
+        self.prev_throttle = throttle
         self.prev_error = v_error
         
         return throttle
@@ -78,27 +80,30 @@ class PIDController:
     def calculate_steering(self, ego_pos, yaw, waypoints, speed, dt = 0.3):
         """Calculate steering angle using PurePursuit, Stanley, or MPC"""
         steering = 0
-        lookahead_distance = 2
+        lookahead_distance = speed
         x,y = ego_pos
         goal_idx = self.get_goal_waypoint_index(x, y, waypoints, lookahead_distance)
         
         
-        v1 = [x-waypoints[1,0],y-waypoints[1,1]]
+        v1 = [waypoints[goal_idx,0]-x,waypoints[goal_idx,1]-y]
         v2 = [np.cos(yaw), np.sin(yaw)]
         try:
             alpha = self.get_alpha(v1, v2, lookahead_distance)
         except:
             alpha = self.alpha_prev
         self.alpha_prev = alpha
-        steering = self.get_steering_direction(v1, v2) * math.atan((2 * 0.3 * math.sin(alpha)) / (0.3 * speed))
-        return steering
+        steering = self.get_steering_direction(v1, v2) * math.atan((2 * 0.3 * math.sin(alpha)) / (2 * speed))
+        return steering, goal_idx
     
     def get_goal_waypoint_index(self, x, y, waypoints, lookahead_distance):
         # Placeholder: Return the index of the closest waypoint ahead
+        
         for i, waypoint in enumerate(waypoints.tolist()):
-            if abs(self.distance_2d(x, y, waypoint[0], waypoint[1]) - lookahead_distance) <= 1e-2:
-                return i
-        return len(waypoints) - 1
+            if i == 0: continue
+            dist = abs(self.distance_2d(x, y, waypoint[0], waypoint[1])-lookahead_distance)
+            if waypoint[0]> x and dist <= 10:
+                    return i
+        return waypoints.shape[0]-1
     
     def get_alpha(self, v1, v2, lookahead_distance):
         inner_prod = v1[0] * v2[0] + v1[1] * v2[1]
@@ -106,19 +111,10 @@ class PIDController:
     
     def get_steering_direction(self, v1, v2):
         # Placeholder: Determine steering direction (left or right)
-        return 1 if v1[0] * v2[1] - v1[1] * v2[0] > 0 else -1
+        return -1 if v1[0] * v2[1] - v1[1] * v2[0] >= 0 else 1
     
     def distance_2d(self, x1, y1, x2, y2):
         return math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
-
-def calculate_target_angle(vehicle_position, waypoints):
-    """
-    Calculate the desired angle to the next waypoint.
-    """
-    closest_waypoint = waypoints
-    target_vector = np.array(closest_waypoint) - np.array(vehicle_position)[:2]
-    desired_angle = np.arctan2(target_vector[1], target_vector[0])
-    return desired_angle
 
 
 def main(args):
@@ -159,15 +155,18 @@ def main(args):
             toc = time.time()
             
             waypoints = np.array([
-                    [23,7],[ego.position[0]+ego.velocity[0]*1.5,3.5]
+                    [20,3.5],[30,3.5],[40,3.5],[50,3.5],[60,3.5],[70,3.],[80,3.5],[90,3.5],[100,3.5],[120,3.5]
                 ])
+            # waypoints = np.array([
+            #         [20,0],[30,0],[40,0],[50,0],[60,0],[70,0],[80,0],[90,0],[100,0],[120,0]
+            #     ])
             comp_time_array.append(toc - tic)
             
             # Calculate control inputs
             # target_angle = calculate_target_angle(ego.position[:2], [x,y])
             # max_steering = np.deg2rad(ego.config["max_steering"])
             speed = np.linalg.norm(ego.velocity)
-            steer = pid_steering.calculate_steering(ego.position, ego.heading_theta, waypoints, speed)
+            steer,goal_idx = pid_steering.calculate_steering(ego.position, ego.heading_theta, waypoints, speed)
             
             # Set throttle (speed control to maintain constant speed)
             target_speed = 3  # Target speed in m/s
@@ -180,7 +179,7 @@ def main(args):
             ######## TOP DOWN RENDER #########
             frame = env.render(mode="topdown",
                                 window=False,
-                                # text={"command": f"{command1},{command2}"},
+                                text={"target": f"{waypoints[goal_idx]}"},
                                 screen_size=(400, 400))
             # plt.imshow(frame)
             # plt.show()

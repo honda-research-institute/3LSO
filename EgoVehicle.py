@@ -62,7 +62,7 @@ class EgoVehicle(Vehicle):
         self.cost_functions = {
             lane_tendency: cost_function(ego, manual_config) for lane_tendency in self.lane_tendencies
         }
-        self.executor = ThreadPoolExecutor(max_workers = 5)
+        self.executor = ThreadPoolExecutor(max_workers = 3)
         
         #* Log data for analysis
         self.log = {
@@ -81,7 +81,7 @@ class EgoVehicle(Vehicle):
 
     def step(self, ego):
         self.x = np.array([ego.position[0],ego.position[1],ego.heading_theta, ego.speed]) ## (x,y,phi,v)        
-        self.u = np.array(ego.last_action)
+        # self.u = np.array(ego.last_action)
         try:
             self.x_history = np.append(self.x_history, self.x[np.newaxis], axis = 0)
         except:
@@ -90,7 +90,7 @@ class EgoVehicle(Vehicle):
     
     def update_state(self, ego, u, du):
         x, y, psi, v = ego[0], ego[1], ego[2], ego[3]
-        a, dl = (u[0] + du[0] * self.dt, self.u[1] + du[1] * self.dt)
+        a, dl = (u[0] + du[0] * self.dt, u[1] + du[1] * self.dt)
         x += v * self.dt * np.cos(psi + dl)
         y += v * self.dt * np.sin(psi + dl)
         psi += v / self.l_r * self.dt * np.sin(dl)
@@ -129,7 +129,8 @@ class EgoVehicle(Vehicle):
 
     def worker_function(self, lane_tendency, vehicles, xhat_history, x_history, u):
         cost_fn = self.cost_functions[lane_tendency]
-        u_plan = [u]
+        u_prev = u
+        u_plan = []
         trajectory = []
         trajectory_cost = 0
         for k in range(int(self.T / self.dt)):
@@ -140,9 +141,9 @@ class EgoVehicle(Vehicle):
             target, waypoints = self.update_target(xhat_history, x_history, lane_tendency)
 
             # OPTIMIZATION 2: Control input selection
-            u_candidates = self.actions_arr * self.dt + u
+            u_candidates = self.actions_arr * self.dt + u_prev
             x_candidates = Vehicle.forward(x_history[-1], u_candidates, self.dt)
-            cost, spatial_risk = cost_fn.evaluate_cost(x_history[-1], x_candidates, x_history,xhat_history,u,target,self.goal,self.cv_predictions)
+            cost, spatial_risk = cost_fn.evaluate_cost(x_history[-1], x_candidates, x_history,xhat_history,u_prev,target,self.goal,self.cv_predictions)
 
             if np.all(cost == cost[0]):
                 istar = int(((self.N_j * self.N_sr) - 1) / 2)
@@ -153,21 +154,24 @@ class EgoVehicle(Vehicle):
             self.spatial_risk = spatial_risk[istar]
             self.xhat_predictions = cost_fn.get_predictions(istar)
 
-            a, dl = u_plan[-1][0] + ustar[0] * self.dt, u_plan[-1][1] + ustar[1] * self.dt if u_plan else 0
-            u_plan.append([a, dl])
+            a, dl = ustar[0], ustar[1] 
+            
 
-            x = self.update_state(x_history[-1], u_plan[-1], ustar)
+            x = self.update_state(x_history[-1], u_prev, ustar)
+
             trajectory.append(x)
+            u_prev = [u_prev[0]+a*self.dt, u_prev[1]+dl*self.dt]
+            u_plan.append(u_prev)
             x_history = np.append(x_history, np.array(x)[np.newaxis, :], axis=0)
 
-            current_cost = self.evaluate_current_state(a, dl, ustar[0], ustar[1], x, xhat_history[:,-1])
+            current_cost = self.evaluate_current_state(a, dl, ustar[0], ustar[1], x, xhat_history[:,-1]) # cost[istar]
             trajectory_cost += 0.9**k * current_cost
 
         return u_plan, trajectory, trajectory_cost
     
-    def get_control(self, vehicles):
+    def get_control(self, vehicles_):
         vehicles = np.array([[vehicle.position[0], vehicle.position[1],
-                              vehicle.heading_theta, vehicle.speed] for vehicle in vehicles])  # (Nveh, 4)
+                              vehicle.heading_theta, vehicle.speed] for vehicle in vehicles_])  # (Nveh, 4)
         try:
             self.xhat_history = np.append(self.xhat_history, vehicles[:, np.newaxis], axis=1)
         except:
@@ -187,13 +191,15 @@ class EgoVehicle(Vehicle):
 
         # Combine results (you may need to decide how to aggregate u_plan and trajectory_cost)
         u_candidates = np.array([result[0] for result in results])
+        
         trajectory = np.array([result[1] for result in results])
         trajectory_costs = np.array([result[2] for result in results])
         
         # Optimization 3: lane_tendency 
         istar = np.argmin(trajectory_costs)
-        
-        return trajectory[istar]#trajectory[istar][1,2], trajectory[istar][1,3], #u_candidates[istar,2,0], np.rad2deg(u_candidates[istar,2,1]) #/self.MAX_THROTTLE
+        self.u = u_candidates[istar,4]
+        print(f"Lane tendency : {self.lane_tendencies[istar]}")
+        return trajectory[istar] #trajectory[istar][1,2], trajectory[istar][1,3], #u_candidates[istar,2,0], np.rad2deg(u_candidates[istar,2,1]) #/self.MAX_THROTTLE
 
     def predict(self, xhat_history, S):
         """
@@ -291,6 +297,6 @@ class EgoVehicle(Vehicle):
         # Get minimum distance and ensure non-negative
         # min_dist = np.clip(np.min(dists, axis=(1, 2)),1e-3,None) # (Nveh,)
         min_dist = np.min(dists, axis = (1,2))
-        if np.any(min_dist<=0) :
-            return 1e2
+        if np.any(min_dist<=0.5) :
+            return 1e3
         return 0 

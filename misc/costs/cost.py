@@ -42,9 +42,9 @@ class cost_function:
         self.l_r = 0.5
 
         #* Miscellaneous Parameters
-        self.vmax = ego.max_speed_m_s
+        self.vmax = manual_config["control"]["vmax"]
         self.veh_length = ego.LENGTH
-        self.veh_width = ego.WIDTH        
+        self.veh_width = ego.WIDTH
         self.dt = manual_config['simulation']["dt"]
         self.S = manual_config["prediction"]["S"]
         self.confidence = manual_config['prediction']["confidence"]

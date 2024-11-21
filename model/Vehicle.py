@@ -3,7 +3,7 @@ import numpy as np
 class Vehicle:
     def __init__(self, ego, args, manual_config) -> None:
         self.x = np.array([ego.position[0],ego.position[1],ego.heading_theta, ego.speed]) ## (x,y,phi,v)        
-        self.u = np.array(ego.last_action)
+        self.u = np.array([0,0])
         self.vmax = ego.max_speed_m_s
         self.veh_length = ego.LENGTH
         self.veh_width = ego.WIDTH
@@ -57,7 +57,7 @@ class Vehicle:
             delta = 4 #-- acceleration exponent for IDM (typically 4)
             
             T=1.8
-            v_des = 1#-- desired speed for each vehicle
+            v_des = 3#-- desired speed for each vehicle
             Nveh = x.shape[0]
             # v_des = np.random.uniform(0.5,2,(x.shape[0]+1,))
             # T = np.random.uniform(0.5,2,(x.shape[0]+1,)) #1.8 # desired time headway for IDM

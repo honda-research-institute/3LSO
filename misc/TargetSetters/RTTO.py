@@ -28,11 +28,11 @@ class RTTO:
         p2 = calc_biased_polar_states_toward_goal_y(goal_y = goal[1],nxy=self.N_goal_samples,d=self.goal_dist,
                                                     a_min=-self.goal_angle,a_max=self.goal_angle,x_cur=x_cur) #(N,3)
         # waypoints = get_spline(p1,p2,x_cur[3],self.dt,xhat_predictions.shape[1], vectorize = True)
-        waypoints = get_geodesic(p1,p2,x_cur[3],self.dt) #(N_pred,N_wp,3)
-        waypoints = np.transpose(waypoints[:self.S],[1,0,2]) #(N_wp,N_pred,3)
+        waypoints = get_geodesic(p1,p2,x_cur[3],self.dt)[1:self.S] #(N_pred,N_wp,3)
+        waypoints = np.transpose(waypoints,[1,0,2]) #(N_wp,N_pred,3)
 
-        collision = self.collision_check(waypoints, xhat_predictions) 
-        spatial_risks = self.spatial_risk(waypoints, xhat_predictions, x_cur[3]) #(N_wp, N_pred)
+        collision = self.collision_check(waypoints, xhat_predictions[:,1:]) 
+        spatial_risks = self.spatial_risk(waypoints, xhat_predictions[:,1:], x_cur[3]) #(N_wp, N_pred)
         
         self.waypoints, self.row_idx, self.col_idx = self.get_optimal_sample_path(waypoints,spatial_risks,goal,collision, lane_tendency) #(N_pred,3)
         
@@ -92,8 +92,10 @@ class RTTO:
 
         # Get minimum distance and ensure non-negative
         # TODO: use different measure than min to evaluate over Npred.
+        # min_dist = np.min(dists, axis=(3, 4, 2)) #(Npred, Nsample)
+        # return np.exp(-min_dist).T#1/(10*min_dist**2)#
         min_dist = np.clip(np.min(dists, axis=(3, 4, 0, 2)),1e-2,None) #(Npred, Nsample)
-        return np.exp(-1*min_dist**2)#1/(10*min_dist**2)#
+        return np.exp(-1*min_dist**2)#1/(10*min_dist**2)
     
     def get_optimal_sample_path(self,waypoints,risk,goal,collision,lane_tendency):
         '''
@@ -105,8 +107,7 @@ class RTTO:
         forward_propagation = waypoints[:,:,0]
         # path_cost = lane_deviation - forward_propagation/np.max(forward_propagation)
         path_cost = 2*self.normalize(lane_deviation) - self.normalize(forward_propagation)
-        #! START HERE. 
-        costs = (1-lane_tendency)* risk  + lane_tendency* path_cost
+        costs = (1-lane_tendency)* np.tanh((risk/0.4)**2)  + lane_tendency* path_cost
         costs_sum = np.mean(costs,axis=1)
         r = np.argmin(costs_sum)
         # r, c = np.unravel_index(np.argmin(costs), costs.shape)
@@ -141,15 +142,19 @@ class RTTO:
         dist = 1/(self.alpha_g + np.transpose(p_bar,[0, 1, 2, 4, 3])@cov_veh_inv@p_bar)
         skew = 1 / (1+np.exp(self.alpha_s*np.transpose(p_bar, [0, 1, 2, 4, 3])@v_bar))
 
-        p_road_1 = np.array([[0],[-1]])
+        p_road_1 = np.array([[0],[-0.5]])
         p_road_2 = np.array([[0],[9]])
         p_bar_lane_1 = (p_ego[0] - p_road_1)[:,:,1]
         p_bar_lane_2 = (p_road_2 - p_ego[0])[:,:,1]
         np.clip(p_bar_lane_1,0,None,out=p_bar_lane_1)
         np.clip(p_bar_lane_2,0,None,out=p_bar_lane_2)
         lane_risk = np.exp(-self.alpha_r*p_bar_lane_1*p_bar_lane_1) + np.exp(-self.alpha_r*p_bar_lane_2*p_bar_lane_2)
-        risk = np.sum(dist * skew, axis=0)[:, :, 0, 0]  + lane_risk[:,:,0]
-        return risk
+        # risk = np.sum(dist * skew, axis=0)[:, :, 0, 0]  + lane_risk[:,:,0]
+        spatial_risk = np.sum(dist * skew, axis=0)[:, :, 0, 0] 
+        collision_risk = self.collision_check(waypoints, xhat_predictions) #(Npred, Nsample)
+        risk = 0.5*collision_risk + 0.5*spatial_risk.T + 0.2*lane_risk[:,:,0].T #0.5*spatial_risk.T+0.5*collision_risk + 0.2*lane_risk[:,:,0].T
+        return risk.T
+        # return risk
     
     def normalize(self,arr):
         arr_min = np.min(arr)

@@ -89,10 +89,9 @@ class SGAN_cost_function(cost_function):
             # du = np.random.uniform(-0.4,0.4,du.shape)
             # u = u+du*self.dt
             # u = u*0
-        try:    
-            xhat_predictions = self.predictor.predict_batch(x_history,xhat_history_temp_2[:,:,:2],Nveh, self.Nsample ,self.dt, self.model.dt, x_reference)
-        except:
-            print("1")
+
+        xhat_predictions = self.predictor.predict_batch(x_history,xhat_history_temp_2[:,:,:2],Nveh, self.Nsample ,self.dt, self.model.dt, x_reference)
+
         obstacle_positions = xhat_predictions[:,1:] # 0th vehicle is the ego vehicle
         
         cv_predictions = np.repeat(cv_predictions[:,:,np.newaxis],121,axis=2)
@@ -149,12 +148,12 @@ class SGAN_cost_function(cost_function):
         
         track_cost = (
             2000*np.tanh(0.1*((target[0] - x_reference[:,:,0]) ** 2 + (target[1] - x_reference[:,:,1]) ** 2)) # target position tracking
-            + 200* (x_reference[:,:,3] - vref) ** 2 # target velocity tracking 
-            + 500* np.abs(x_reference[:,:,2]) # target heading angle tracking
-            + 100*np.abs(u_reference[:,:,0]) + 50*np.abs(u_reference[:,:,1])  # control effort
+            + 500* (x_reference[:,:,3] - vref) ** 2 # target velocity tracking 
+            + 800* np.abs(x_reference[:,:,2]) # target heading angle tracking
+            + 50*np.abs(u_reference[:,:,0]) + 500*np.abs(u_reference[:,:,1])  # control effort
             # + 40*j**2 + 80*sr**2
-            + 300*np.abs(du_reference[:,:,0]) + 500*np.abs(du_reference[:,:,1]) # driving comfort 
-            + 80*spatial_risk + 1000*np.exp(-(min_dist-1)) +100*np.exp(-10*(lane_dist)) #10*(1/min_dist)**2 + 0.1*(1/lane_dist)**2 #+ 2*(1/min_dist)**2 + 1*(1/lane_dist)**2# 20*np.exp(-(min_dist-0.5)) #+10*np.exp(-10*(lane_dist-0.2))
+            + 50*np.abs(du_reference[:,:,0]) + 500*np.abs(du_reference[:,:,1]) # driving comfort 
+            + 80*spatial_risk + 200*np.exp(-(min_dist-1)) +100*np.exp(-10*(lane_dist)) #10*(1/min_dist)**2 + 0.1*(1/lane_dist)**2 #+ 2*(1/min_dist)**2 + 1*(1/lane_dist)**2# 20*np.exp(-(min_dist-0.5)) #+10*np.exp(-10*(lane_dist-0.2))
         ) #(N_pred,Nsample)
 
         track_max = np.max(track_cost,axis=1) #for normalization 
@@ -238,7 +237,7 @@ class SGAN_cost_function(cost_function):
         dists = np.sqrt(dist_x**2 + dist_y**2) - (w + wi)[:,:,:,np.newaxis,np.newaxis]  # Shape (Npred,Nsample,Nveh, 3, 3)
 
         # Get minimum distance and ensure non-negative
-        min_dist = np.min(dists, axis=(3, 4,2)) #(Npred, Nsample)
+        min_dist = np.min(dists, axis=(3, 4, 2)) #(Npred, Nsample)
         # min_dist = np.mean(min_dist, axis =2 )
         return min_dist #np.clip(min_dist,1e-3,None) #np.exp(-1*min_dist**2) #1/(min_dist**2) #np.exp(-min_dist**2) #1/(10*min_dist**2)#
     
@@ -271,7 +270,7 @@ class SGAN_cost_function(cost_function):
         dist = 1/(self.alpha_g + p_bar[:,:,:,np.newaxis,:]@cov_veh_inv@p_bar[:,:,:,:,np.newaxis]) #(Npred,Nveh,Nsample,1)
         skew = 1 / (1+np.exp(self.alpha_s*p_bar[:,:,:,np.newaxis,:]@v_veh[:,:,:,:,np.newaxis]))
 
-        p_road_1 = np.array([[0],[-1]])
+        p_road_1 = np.array([[0],[-0.5]])
         p_road_2 = np.array([[0],[9]])
         p_bar_lane_1 = (p_ego[:,0,:,:,np.newaxis] - p_road_1)[:,:,1]
         p_bar_lane_2 = (p_road_2 - p_ego[:,0,:,:,np.newaxis])[:,:,1]

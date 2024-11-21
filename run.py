@@ -24,6 +24,7 @@ from EgoVehicle import EgoVehicle
 import torch
 import matplotlib.pyplot as plt
 import math
+from tqdm import tqdm
 
 class PIDController:
     def __init__(self, kp, ki, kd):
@@ -34,22 +35,6 @@ class PIDController:
         self.integral = 0
         self.alpha_prev = 0
         self.prev_throttle = 0
-
-    def compute_control(self, target, current):
-        # Calculate error
-        error = (target - current)
-        # Proportional term
-        proportional = self.kp * error
-        # Integral term
-        self.integral += error
-        integral = self.ki * self.integral * 0.3
-        # Derivative term
-        derivative = self.kd * (error - self.prev_error)/0.3
-        # Save error for next iteration
-        self.prev_error = error
-        
-        # Return control output
-        return proportional + integral + derivative
     
     def calculate_throttle(self, v_desired, v, dt=0.3):
         """Calculate throttle using PID control"""
@@ -101,7 +86,7 @@ class PIDController:
         for i, waypoint in enumerate(waypoints.tolist()):
             if i == 0: continue
             dist = abs(self.distance_2d(x, y, waypoint[0], waypoint[1])-lookahead_distance)
-            if waypoint[0]> x and dist <= 10:
+            if waypoint[0]> x and dist <= 1:
                     return i
         return waypoints.shape[0]-1
     
@@ -145,44 +130,46 @@ def main(args):
     movie3d = []
     try:
         frames = []
-        for t in range(int(SIM_TIME/DT)):
-            vehicles = env.engine.traffic_manager.vehicles
-            ego = vehicles[0]
-            # EGO.step(ego)
-
-            tic = time.time()
-            # waypoints = EGO.get_control(vehicles[1:])
-            toc = time.time()
+        
+        for t in tqdm(range(int(SIM_TIME/DT)), desc = "Simulation running..."):
+            # vehicles = env.engine.traffic_manager.vehicles
+            if t % 5 == 0:
+                
+                EGO.step(vehicles[0])
+                tic = time.time()
+                waypoints = EGO.get_control(vehicles[1:])
+                toc = time.time()
+                # print("----WAYPOINTS----")
+                # print(waypoints)
+                # print("-------------------")
             
-            waypoints = np.array([
-                    [20,3.5],[30,3.5],[40,3.5],[50,3.5],[60,3.5],[70,3.],[80,3.5],[90,3.5],[100,3.5],[120,3.5]
-                ])
-            # waypoints = np.array([
-            #         [20,0],[30,0],[40,0],[50,0],[60,0],[70,0],[80,0],[90,0],[100,0],[120,0]
-            #     ])
             comp_time_array.append(toc - tic)
             
             # Calculate control inputs
-            # target_angle = calculate_target_angle(ego.position[:2], [x,y])
-            # max_steering = np.deg2rad(ego.config["max_steering"])
-            speed = np.linalg.norm(ego.velocity)
-            steer,goal_idx = pid_steering.calculate_steering(ego.position, ego.heading_theta, waypoints, speed)
+            # speed = np.linalg.norm(ego.velocity)
+            # steer,goal_idx = pid_steering.calculate_steering(ego.position, ego.heading_theta, waypoints, speed)
+            # # Set throttle (speed control to maintain constant speed)
+            # target_speed = waypoints[goal_idx, 3]  # Target speed in m/s
+            # acc = pid_throttle.calculate_throttle(v_desired = target_speed, v = speed)#/ego.config["max_engine_force"]
             
-            # Set throttle (speed control to maintain constant speed)
-            target_speed = 3  # Target speed in m/s
-            acc = pid_throttle.calculate_throttle(v_desired = target_speed, v = speed)#/ego.config["max_engine_force"]
-            o, r, term, trunc, info = env.step([steer, acc])
-            # ego.set_state([x,y])
-
+            k = t%5
+            o, r, term, trunc, info = env.step([0, 0])
+            vehicles[0].set_position(waypoints[k,:2])
+            vehicles[0].set_heading_theta(waypoints[k,2])
+            vehicles[0].set_velocity([waypoints[k,3]*np.cos(waypoints[k,2]),waypoints[k,3]*np.sin(waypoints[k,2])])
             reward_array.append(r)
 
             ######## TOP DOWN RENDER #########
+            text = np.round(waypoints[k],2)
+            text2 = np.round(vehicles[0].position,2)
             frame = env.render(mode="topdown",
                                 window=False,
-                                text={"target": f"{waypoints[goal_idx]}"},
+                                text={"target": f"{text}",
+                                      "current": f"{text2}"},
                                 screen_size=(400, 400))
-            # plt.imshow(frame)
-            # plt.show()
+            # if k == 0:
+            #     plt.imshow(frame)
+            #     plt.show()
             frames.append(frame)
         
         logging.info(f"Average control compute time is {np.mean(comp_time_array)}")
@@ -198,7 +185,7 @@ def main(args):
 if __name__ == "__main__":
     # * Parsing simulation configuration
     parser = argparse.ArgumentParser()
-    parser.add_argument("--scenario", type=str, default="testing", help="[merge, follow]")
+    parser.add_argument("--scenario", type=str, default="merge", help="[merge, follow]")
     parser.add_argument("--object_policy", type=str, default="IDM", help="[CV, IDM]")
     parser.add_argument("--save_gif", type=bool,
                         default=True, help="Select True to save gif")

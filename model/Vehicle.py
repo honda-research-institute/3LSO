@@ -56,7 +56,7 @@ class Vehicle:
             b = 1 #comfortable deceleration for IDM
             delta = 4 #-- acceleration exponent for IDM (typically 4)
             
-            T=1.8
+            T=0.5
             v_des = 3#-- desired speed for each vehicle
             Nveh = x.shape[0]
             # v_des = np.random.uniform(0.5,2,(x.shape[0]+1,))
@@ -72,7 +72,7 @@ class Vehicle:
             distances = np.sqrt(x_diff**2 + y_diff**2)
 
             # Mask for vehicles that are in front and in the near lane
-            front_mask = (x_diff < 0) & (np.abs(y_diff) <= 2.5) # 1m is the threshold to consider as near lane
+            front_mask = (x_diff < 0) & (np.abs(y_diff) <= 2) # 1m is the threshold to consider as near lane
 
             # Set distance to infinity where vehicles are not in front or not in the same lane
             distances = np.where(front_mask, distances, np.inf)

@@ -190,12 +190,12 @@ class IDMPolicy(BasePolicy):
     KP_HEADING = 1 / TAU_HEADING
     KP_LATERAL = 1 / TAU_LATERAL  # [1/s]
     MAX_STEERING_ANGLE = np.pi / 3  # [rad]
-    DELTA_SPEED = 5  # [m/s]
+    DELTA_SPEED = 4  # [m/s]
 
-    DISTANCE_WANTED = 10.0
+    DISTANCE_WANTED = 10
     """Desired jam distance to the front vehicle."""
 
-    TIME_WANTED = 1.5  # [s]
+    TIME_WANTED = 1.8  # [s]
     """Desired time gap to the front v"""
 
     DELTA = 10.0  # []
@@ -209,17 +209,17 @@ class IDMPolicy(BasePolicy):
     LANE_CHANGE_SPEED_INCREASE = 10
     SAFE_LANE_CHANGE_DISTANCE = 15
     MAX_LONG_DIST = 30
-    MAX_SPEED = 100  # km/h
+    MAX_SPEED = 3*3.6  # km/h
 
     # Normal speed
-    NORMAL_SPEED = 3*3.6  # km/h
+    NORMAL_SPEED = 8 # km/h
 
     # Creep Speed
     CREEP_SPEED = 5
 
     # acc factor
     ACC_FACTOR = 1.0
-    DEACC_FACTOR = -5
+    DEACC_FACTOR = -1.0
 
     def __init__(self, control_object, random_seed):
         super(IDMPolicy, self).__init__(control_object=control_object, random_seed=random_seed)

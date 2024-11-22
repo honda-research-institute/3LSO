@@ -26,7 +26,7 @@ class ScenarioManager(BaseManager):
                     v.set_velocity([speed*np.cos(phi), speed*np.sin(phi)])
                     # v.before_step([0, 0]) # set action
             elif self.object_policy == "IDM":
-                for v in self.generated_v:
+                for i, v in enumerate(self.generated_v):
                     if v in self.vehicle_policies:
                         # Get the action from IDM policy and apply it
                         policy = self.vehicle_policies[v]
@@ -46,9 +46,7 @@ class ScenarioManager(BaseManager):
                 for v in self.generated_v:
                     self.vehicle_policies[v] = IDMPolicy(v,0)
                     self.vehicle_policies[v].enable_lane_change=False
-                    self.vehicle_policies[v].NORMAL_SPEED = 3
-                    self.vehicle_policies[v].MAX_SPEED = 10
-        
+
         elif self.generated_v:
             for v in self.generated_v:
                 v.after_step()

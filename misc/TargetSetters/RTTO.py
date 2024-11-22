@@ -92,9 +92,11 @@ class RTTO:
 
         # Get minimum distance and ensure non-negative
         # TODO: use different measure than min to evaluate over Npred.
-        # min_dist = np.min(dists, axis=(3, 4, 2)) #(Npred, Nsample)
+        min_dist = np.clip(np.min(dists, axis=(3, 4, 2)),0,None) #(Npred, Nsample)
+        w = np.power(1/self.confidence, np.arange(0, min_dist.shape[0], 1))
+        min_dist = min_dist * np.repeat(w[:,np.newaxis],min_dist.shape[1],axis=1)
         # return np.exp(-min_dist).T#1/(10*min_dist**2)#
-        min_dist = np.clip(np.min(dists, axis=(3, 4, 0, 2)),1e-2,None) #(Npred, Nsample)
+        # min_dist = np.clip(np.min(dists, axis=(3, 4, 0, 2)),1e-2,None) #(Npred, Nsample)
         return np.exp(-1*min_dist**2)#1/(10*min_dist**2)
     
     def get_optimal_sample_path(self,waypoints,risk,goal,collision,lane_tendency):
@@ -135,8 +137,8 @@ class RTTO:
 
         cov = np.array([[self.veh_length, 0], [0, self.veh_width]])
         cov_veh = R_veh @ cov @ np.transpose(R_veh, [0, 1, 3, 2])
-        cov_veh_inv = np.power(self.confidence, np.arange(0, v_bar.shape[2], 1))[:,np.newaxis,np.newaxis]*np.linalg.pinv(cov_veh)
-        # cov_veh_inv = np.linalg.pinv(cov_veh)  # (N_veh,N_pred,2,2)
+        # cov_veh_inv = np.power(self.confidence, np.arange(0, v_bar.shape[2], 1))[:,np.newaxis,np.newaxis]*np.linalg.pinv(cov_veh)
+        cov_veh_inv = np.linalg.pinv(cov_veh)  # (N_veh,N_pred,2,2)
         cov_veh_inv = np.repeat(cov_veh_inv[:,np.newaxis,:,:,:],waypoints.shape[0],axis=1)  # (N_veh,N_wp,N_pred,2,2)
 
         dist = 1/(self.alpha_g + np.transpose(p_bar,[0, 1, 2, 4, 3])@cov_veh_inv@p_bar)
@@ -152,7 +154,7 @@ class RTTO:
         # risk = np.sum(dist * skew, axis=0)[:, :, 0, 0]  + lane_risk[:,:,0]
         spatial_risk = np.sum(dist * skew, axis=0)[:, :, 0, 0] 
         collision_risk = self.collision_check(waypoints, xhat_predictions) #(Npred, Nsample)
-        risk = 0.5*collision_risk + 0.5*spatial_risk.T + 0.2*lane_risk[:,:,0].T #0.5*spatial_risk.T+0.5*collision_risk + 0.2*lane_risk[:,:,0].T
+        risk = 0.4*collision_risk + 0.6*spatial_risk.T + 0.2*lane_risk[:,:,0].T #0.5*spatial_risk.T+0.5*collision_risk + 0.2*lane_risk[:,:,0].T
         return risk.T
         # return risk
     

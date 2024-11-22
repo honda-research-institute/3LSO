@@ -25,6 +25,7 @@ import torch
 import matplotlib.pyplot as plt
 import math
 from tqdm import tqdm
+from metadrive.component.pgblock.first_block import FirstPGBlock
 
 class PIDController:
     def __init__(self, kp, ki, kd):
@@ -113,14 +114,17 @@ def main(args):
 
     # TODO: Structure the categories of the required parameters. Classify which ones to set as argparse and config.json.
     # * Initialize environment
+    # vehicle_config = dict(spawn_longitude = manual_config["scenario"][args.scenario]["spawn_longitude"], 
+    #                                     spawn_lateral = manual_config["scenario"][args.scenario]["spawn_latitude"],
+    #                                     spawn_velocity = manual_config["scenario"][args.scenario]["spawn_velocity"])
+    # config = dict(map="S", log_level=50, traffic_density=0.6, physics_world_step_size = DT/5)
+    
+    # env = MetaDriveEnv(config)
     env = ScenarioEnv(dict(map="S", log_level=50, traffic_density=0, physics_world_step_size = DT/5), 
                       args, manual_config) ## dt/5 due to decision_repeat = 5.
-    env.reset(seed=0)
+    env.reset()
     vehicles = env.engine.traffic_manager.vehicles
-    # vehicles[0].max_speed_m_s = 3
     EGO = EgoVehicle(vehicles[0], vehicles[1:], args, manual_config) 
-    pid_steering = PIDController(.3, 0.05, 0.01)
-    pid_throttle = PIDController(8, .2, 1)
  
     # * RUN Simulation
     print("--------------Start running simulations--------------")
@@ -133,7 +137,7 @@ def main(args):
         
         for t in tqdm(range(int(SIM_TIME/DT)), desc = "Simulation running..."):
             # vehicles = env.engine.traffic_manager.vehicles
-            if t % 5 == 0:
+            if t % 2 == 0:
                 
                 EGO.step(vehicles[0])
                 tic = time.time()
@@ -152,7 +156,7 @@ def main(args):
             # target_speed = waypoints[goal_idx, 3]  # Target speed in m/s
             # acc = pid_throttle.calculate_throttle(v_desired = target_speed, v = speed)#/ego.config["max_engine_force"]
             
-            k = t%5
+            k = t%2
             o, r, term, trunc, info = env.step([0, 0])
             vehicles[0].set_position(waypoints[k,:2])
             vehicles[0].set_heading_theta(waypoints[k,2])
@@ -164,12 +168,12 @@ def main(args):
             text2 = np.round(vehicles[0].position,2)
             frame = env.render(mode="topdown",
                                 window=False,
-                                text={"target": f"{text}",
-                                      "current": f"{text2}"},
-                                screen_size=(400, 400))
-            # if k == 0:
-            #     plt.imshow(frame)
-            #     plt.show()
+                                # text={"target": f"{text}",
+                                #       "current": f"{text2}"},
+                                screen_size=(800, 300))
+            # if t == 80:
+            # plt.imshow(frame)
+            # plt.show()
             frames.append(frame)
         
         logging.info(f"Average control compute time is {np.mean(comp_time_array)}")
@@ -185,8 +189,8 @@ def main(args):
 if __name__ == "__main__":
     # * Parsing simulation configuration
     parser = argparse.ArgumentParser()
-    parser.add_argument("--scenario", type=str, default="merge", help="[merge, follow]")
-    parser.add_argument("--object_policy", type=str, default="IDM", help="[CV, IDM]")
+    parser.add_argument("--scenario", type=str, default="follow", help="[merge, follow]")
+    parser.add_argument("--object_policy", type=str, default="CV", help="[CV, IDM]")
     parser.add_argument("--save_gif", type=bool,
                         default=True, help="Select True to save gif")
     args = parser.parse_args()

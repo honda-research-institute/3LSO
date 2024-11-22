@@ -100,60 +100,28 @@ class SGAN_cost_function(cost_function):
         obstacle_positions = cv_predictions
         
         spatial_risk,min_dist,lane_dist = self.spatial_risk(x_reference,obstacle_positions) #(Npred,Nsample)
-        # collision_risk = self.collision_check(x_reference, obstacle_positions)
-        # j = np.append(np.zeros((self.S-1,self.Nsample)), self.j[np.newaxis,:],axis=0) 
-        # sr = np.append(np.zeros((self.S-1,self.Nsample)) ,self.sr[np.newaxis,:],axis=0)
+        
         # track_cost = (
-        #     50*np.tanh(0.1*((target[0] - x_reference[:,:,0]) ** 2 + (target[1] - x_reference[:,:,1]) ** 2)) # target position tracking
-        #     + 20*(x_reference[:,:,3] - vref) ** 2 # target velocity tracking 
-        #     + 5*x_reference[:,:,2]**2 # target heading angle tracking
-        #     + 10*u_reference[:,:,0]**2 + 10*u_reference[:,:,1]**2  # control effort
-        #     + 10*du_reference[:,:,0]**2 + 10*du_reference[:,:,1]**2 # driving comfort 
-        #     #+ 100*lane_risk
-        #     # + collision_risk.T
+        #     # 2000*np.tanh(0.1*((target[0] - x_reference[:,:,0]) ** 2 + (target[1] - x_reference[:,:,1]) ** 2)) # target position tracking
+        #     100*((target[0] - x_reference[:,:,0]) ** 2 + (target[1] - x_reference[:,:,1]) ** 2)
+        #     + 50*(x_reference[:,:,3] - vref) ** 2 # target velocity tracking 
+        #     + 1500*(x_reference[:,:,2])**2 # target heading angle tracking
+        #     + 100*(u_reference[:,:,0])**2 + 200*(u_reference[:,:,1])**2  # control effort
+        #     # + 40*j**2 + 80*sr**2
+        #     + 50*(du_reference[:,:,0])**2 + 2000*(du_reference[:,:,1])**2 # driving comfort 
+        #     + 6000*spatial_risk + 10*np.log(1+np.exp(-5*(min_dist-1))) + 5*np.log(1+np.exp(-5*(lane_dist-1)))#+100*np.exp(-10*(lane_dist)) #10*(1/min_dist)**2 + 0.1*(1/lane_dist)**2 #+ 2*(1/min_dist)**2 + 1*(1/lane_dist)**2# 20*np.exp(-(min_dist-0.5)) #+10*np.exp(-10*(lane_dist-0.2))
         # ) #(N_pred,Nsample)
 
-        # w_ref = 50*spatial_risk
-        # track = self.w_ref * 4*((target[0] - x_reference[:,:,0]) ** 2 + (target[1] - x_reference[:,:,1]) ** 2)
-        # vel = self.w_ref * (x_reference[:,:,3] - vref) ** 2
-        # heading = self.w_ref * 3 *  x_reference[:,:,2]**2 
-        # cont = 5 * u_reference[:,:,0]**2 + 10 * u_reference[:,:,1]**2
-        # comf = 600* du_reference[:,:,0]**2 + 600 * du_reference[:,:,1]**2
-        # circ_dist = 120*np.exp(-2*min_dist)
-        # l_dist = 20*np.exp(-20*lane_dist)
-        # risk= 20*np.exp(-10*lane_dist)
 
-        # package = (track,vel,heading,cont,comf,circ_dist,l_dist,risk)
-        # track_cost = (
-        #     # self.w_ref *  15 * np.tanh(((target[0] - x_reference[:,:,0]) ** 2 + (target[1] - x_reference[:,:,1]) ** 2)) # target position tracking
-        #     self.w_ref * ((target[0] - x_reference[:,:,0]) ** 2 + (target[1] - x_reference[:,:,1]) ** 2)
-        #     + self.w_ref * (x_reference[:,:,3] - vref) ** 2 # target velocity tracking 
-        #     + self.w_ref * x_reference[:,:,2]**2 # target heading angle tracking
-        #     + u_reference[:,:,0]**2 + 2*u_reference[:,:,1]**2  # control effort
-        #     + du_reference[:,:,0]**2 + 2* du_reference[:,:,1]**2 # driving comfort 
-        #     + 5*np.exp(-2*min_dist)
-        #     # + np.exp(-lane_dist)
-        #     + spatial_risk
-        # ) #(N_pred,Nsample)
-        
-       #!THIS ONE WORKS 
-        # track_cost = (
-        #     40 *np.tanh(((target[0] - x_reference[:,:,0]) ** 2 + (target[1] - x_reference[:,:,1]) ** 2)) # target position tracking
-        #     + 10 *(x_reference[:,:,3] - vref) ** 2 # target velocity tracking 
-        #     + 40 * x_reference[:,:,2]**2 # target heading angle tracking
-        #     + 10 * u_reference[:,:,0]**2 + 10*u_reference[:,:,1]**2  # control effort
-        #     + 40 * du_reference[:,:,0]**2 + 80* du_reference[:,:,1]**2 # driving comfort 
-        #     + 20*spatial_risk + (0.05/min_dist)**2 + (0.0001/lane_dist)**2# 20*np.exp(-(min_dist-0.5)) #+10*np.exp(-10*(lane_dist-0.2))
-        # ) #(N_pred,Nsample)
-        
         track_cost = (
-            2000*np.tanh(0.1*((target[0] - x_reference[:,:,0]) ** 2 + (target[1] - x_reference[:,:,1]) ** 2)) # target position tracking
-            + 500* (x_reference[:,:,3] - vref) ** 2 # target velocity tracking 
-            + 800* np.abs(x_reference[:,:,2]) # target heading angle tracking
-            + 50*np.abs(u_reference[:,:,0]) + 500*np.abs(u_reference[:,:,1])  # control effort
+            # 2000*np.tanh(0.1*((target[0] - x_reference[:,:,0]) ** 2 + (target[1] - x_reference[:,:,1]) ** 2)) # target position tracking
+            150*((target[0] - x_reference[:,:,0]) ** 2 + (target[1] - x_reference[:,:,1]) ** 2)
+            + 50*(x_reference[:,:,3] - vref) ** 2 # target velocity tracking 
+            + 500*(x_reference[:,:,2])**2 # target heading angle tracking
+            + 100*(u_reference[:,:,0])**2 + 200*(u_reference[:,:,1])**2  # control effort
             # + 40*j**2 + 80*sr**2
-            + 50*np.abs(du_reference[:,:,0]) + 500*np.abs(du_reference[:,:,1]) # driving comfort 
-            + 80*spatial_risk + 200*np.exp(-(min_dist-1)) +100*np.exp(-10*(lane_dist)) #10*(1/min_dist)**2 + 0.1*(1/lane_dist)**2 #+ 2*(1/min_dist)**2 + 1*(1/lane_dist)**2# 20*np.exp(-(min_dist-0.5)) #+10*np.exp(-10*(lane_dist-0.2))
+            + 50*(du_reference[:,:,0])**2 + 1500*(du_reference[:,:,1])**2 # driving comfort 
+            + 3000*spatial_risk + 10*np.log(1+np.exp(-5*(min_dist-1))) + 5*np.log(1+np.exp(-5*(lane_dist-1)))#+100*np.exp(-10*(lane_dist)) #10*(1/min_dist)**2 + 0.1*(1/lane_dist)**2 #+ 2*(1/min_dist)**2 + 1*(1/lane_dist)**2# 20*np.exp(-(min_dist-0.5)) #+10*np.exp(-10*(lane_dist-0.2))
         ) #(N_pred,Nsample)
 
         track_max = np.max(track_cost,axis=1) #for normalization 
@@ -238,6 +206,8 @@ class SGAN_cost_function(cost_function):
 
         # Get minimum distance and ensure non-negative
         min_dist = np.min(dists, axis=(3, 4, 2)) #(Npred, Nsample)
+        w = np.power(1/self.confidence, np.arange(0, min_dist.shape[0], 1))
+        min_dist = min_dist * np.repeat(w[:,np.newaxis],min_dist.shape[1],axis=1)
         # min_dist = np.mean(min_dist, axis =2 )
         return min_dist #np.clip(min_dist,1e-3,None) #np.exp(-1*min_dist**2) #1/(min_dist**2) #np.exp(-min_dist**2) #1/(10*min_dist**2)#
     
@@ -258,31 +228,32 @@ class SGAN_cost_function(cost_function):
         v_ego_y = candidates_expanded[:, :, 3]*np.sin(candidates_expanded[:,:,2])
         v_ego = np.stack([v_ego_x,v_ego_y],axis=-1)[:,np.newaxis,:,:]#(Npred,1,Nsample,2)
 
-        v_bar = np.clip(v_veh-v_ego,-3,3) #(Npred,Nveh,Nsample,2)
+        v_bar = v_veh-v_ego #(Npred,Nveh,Nsample,2)
 
         R_veh = np.transpose(self.rotation_matrix(
             xhat_predictions[:, :, :, 2]), [2, 3, 4, 0, 1])
 
         cov =  np.array([[self.veh_length, 0], [0, self.veh_width]])
         cov_veh = R_veh @ cov @ np.transpose(R_veh, [0, 1, 2, 4, 3])
-        cov_veh_inv = np.power(self.confidence, np.arange(0, v_bar.shape[2], 1))[:,np.newaxis,np.newaxis]*np.linalg.pinv(cov_veh)  # (Npred,N_veh,Nsample,2,2)
-
+        # cov_veh_inv = np.power(self.confidence, np.arange(0, v_bar.shape[2], 1))[:,np.newaxis,np.newaxis]*np.linalg.pinv(cov_veh)  # (Npred,N_veh,Nsample,2,2)
+        cov_veh_inv = np.linalg.pinv(cov_veh)
         dist = 1/(self.alpha_g + p_bar[:,:,:,np.newaxis,:]@cov_veh_inv@p_bar[:,:,:,:,np.newaxis]) #(Npred,Nveh,Nsample,1)
-        skew = 1 / (1+np.exp(self.alpha_s*p_bar[:,:,:,np.newaxis,:]@v_veh[:,:,:,:,np.newaxis]))
+        skew = 1 / (1+np.exp(self.alpha_s*p_bar[:,:,:,np.newaxis,:]@v_bar[:,:,:,:,np.newaxis]))
 
         p_road_1 = np.array([[0],[-0.5]])
         p_road_2 = np.array([[0],[9]])
         p_bar_lane_1 = (p_ego[:,0,:,:,np.newaxis] - p_road_1)[:,:,1]
         p_bar_lane_2 = (p_road_2 - p_ego[:,0,:,:,np.newaxis])[:,:,1]
 
-        # np.clip(p_bar_lane_1,0,None,out=p_bar_lane_1)
-        # np.clip(p_bar_lane_2,0,None,out=p_bar_lane_2)
+        np.clip(p_bar_lane_1,0,None,out=p_bar_lane_1)
+        np.clip(p_bar_lane_2,0,None,out=p_bar_lane_2)
         lane_dist = np.minimum(p_bar_lane_1,p_bar_lane_2)
 
         lane_risk = np.exp(-self.alpha_r*p_bar_lane_1*p_bar_lane_1) + np.exp(-self.alpha_r*p_bar_lane_2*p_bar_lane_2) #(Nveh,Nsample,1)
         # risk = np.sum(dist * skew, axis=1)[:, :, 0, 0]  + lane_risk[:,:,0]
-        spatial_risk = np.mean(dist * skew, axis=1)[:, :, 0, 0]  #+ lane_risk[:,:,0]
+        # spatial_risk = np.mean(dist * skew, axis=1)[:, :, 0, 0]  #+ lane_risk[:,:,0]
         min_dist = self.collision_check(candidates_expanded, xhat_predictions) #(Npred, Nsample)
-        
+        spatial_risk = 5*np.mean(dist * skew, axis=1)[:, :, 0, 0]  + 0.25*lane_risk[:,:,0]
+
         # risk = 0.5*collision_risk + 0.5*spatial_risk+0.2*lane_risk[:,:,0] #0.5*spatial_risk+0.5*collision_risk + 0.2*lane_risk[:,:,0]
         return spatial_risk, min_dist, lane_dist[:,:,0] #np.clip(lane_dist[:,:,0],1e-3,None)

@@ -197,7 +197,7 @@ class EgoVehicle(Vehicle):
         
         # Optimization 3: lane_tendency 
         istar = np.argmin(trajectory_costs)
-        self.u = u_candidates[istar,4]
+        self.u = u_candidates[istar,1]
         print(f"Lane tendency : {self.lane_tendencies[istar]}")
         return trajectory[istar] #trajectory[istar][1,2], trajectory[istar][1,3], #u_candidates[istar,2,0], np.rad2deg(u_candidates[istar,2,1]) #/self.MAX_THROTTLE
 

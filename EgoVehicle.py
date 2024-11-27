@@ -226,9 +226,9 @@ class EgoVehicle(Vehicle):
         return xhat_history[:,-S:]
 
     
-    def CVmodel(self,xhat_prediction):
+    def CVmodel(self,xhat_history):
         l_r = 0.5
-        x, y, psi, v = xhat_prediction[:,-1, 0], xhat_prediction[:,-1, 1], xhat_prediction[:,-1, 2], xhat_prediction[:,-1, 3]
+        x, y, psi, v = xhat_history[:,-1, 0], xhat_history[:,-1, 1], xhat_history[:,-1, 2], xhat_history[:,-1, 3]
         a, dl = 0, 0
         
         # Vectorized updates
@@ -240,7 +240,7 @@ class EgoVehicle(Vehicle):
         # Combine the updated values back into a state matrix
         X_updated = np.stack([x, y, psi, v], axis=-1)[:,np.newaxis,:]
         return X_updated
-
+    
     def evaluate_current_state(self, a, dl, j,sr, x, xhat):
         # Below is to evaluate the current step only, i.e. prediction costs are neglected
         #! unlike track_cost, current_cost is evaluated based on its actual distance to the goal
@@ -297,6 +297,6 @@ class EgoVehicle(Vehicle):
         # Get minimum distance and ensure non-negative
         # min_dist = np.clip(np.min(dists, axis=(1, 2)),1e-3,None) # (Nveh,)
         min_dist = np.min(dists, axis = (1,2))
-        if np.any(min_dist<=0.5) :
+        if np.any(min_dist<=1) :
             return 1e3
         return 0 

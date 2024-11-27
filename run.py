@@ -138,16 +138,16 @@ def main(args):
         for t in tqdm(range(int(SIM_TIME/DT)), desc = "Simulation running..."):
             # vehicles = env.engine.traffic_manager.vehicles
             if t % 2 == 0:
-                
+            
                 EGO.step(vehicles[0])
                 tic = time.time()
                 waypoints = EGO.get_control(vehicles[1:])
                 toc = time.time()
-                # print("----WAYPOINTS----")
-                # print(waypoints)
-                # print("-------------------")
-            
-            comp_time_array.append(toc - tic)
+                    # print("----WAYPOINTS----")
+                    # print(waypoints)
+                    # print("-------------------")
+                
+                comp_time_array.append(toc - tic)
             
             # Calculate control inputs
             # speed = np.linalg.norm(ego.velocity)
@@ -177,6 +177,7 @@ def main(args):
             frames.append(frame)
         
         logging.info(f"Average control compute time is {np.mean(comp_time_array)}")
+        logging.info(f"Reward sum is {np.sum(reward_array)}")
     except:
         env.close()
 

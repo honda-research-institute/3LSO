@@ -195,7 +195,7 @@ class IDMPolicy(BasePolicy):
     DISTANCE_WANTED = 10
     """Desired jam distance to the front vehicle."""
 
-    TIME_WANTED = 1.8  # [s]
+    TIME_WANTED = 1.2  # [s]
     """Desired time gap to the front v"""
 
     DELTA = 10.0  # []

@@ -108,7 +108,7 @@ class RTTO:
         lane_deviation = (goal[1]-waypoints[:,:,1])**2
         forward_propagation = waypoints[:,:,0]
         # path_cost = lane_deviation - forward_propagation/np.max(forward_propagation)
-        path_cost = 2*self.normalize(lane_deviation) - self.normalize(forward_propagation)
+        path_cost = self.normalize(lane_deviation) - self.normalize(forward_propagation)
         costs = (1-lane_tendency)* np.tanh((risk/0.4)**2)  + lane_tendency* path_cost
         costs_sum = np.mean(costs,axis=1)
         r = np.argmin(costs_sum)

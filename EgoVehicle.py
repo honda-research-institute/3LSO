@@ -28,7 +28,7 @@ class EgoVehicle(Vehicle):
         self.MAX_STEERING = ego.max_steering
         self.MAX_THROTTLE = ego.config["max_engine_force"]
         self.lane_tendencies = manual_config["planning"]["lane_tendencies"]
-        
+        self.planning_interval = manual_config["simulation"]["interval"]
         #* Planner initialization
         self.T = manual_config["planning"]["T"] # [s]
         self.dyn = manual_config["planning"]["dyn"]
@@ -132,6 +132,7 @@ class EgoVehicle(Vehicle):
         u_prev = u
         u_plan = []
         trajectory = []
+        min_dists = []
         trajectory_cost = 0
         for k in range(int(self.T / self.dt)):
 
@@ -164,10 +165,10 @@ class EgoVehicle(Vehicle):
             u_plan.append(u_prev)
             x_history = np.append(x_history, np.array(x)[np.newaxis, :], axis=0)
 
-            current_cost = self.evaluate_current_state(a, dl, ustar[0], ustar[1], x, xhat_history[:,-1]) # cost[istar]
+            current_cost, min_dist = self.evaluate_current_state(a, dl, ustar[0], ustar[1], x, xhat_history[:,-1]) # cost[istar]
             trajectory_cost += 0.9**k * current_cost
-
-        return u_plan, trajectory, trajectory_cost
+            min_dists.append(min_dist)
+        return u_plan, trajectory, trajectory_cost, min_dists
     
     def get_control(self, vehicles_):
         vehicles = np.array([[vehicle.position[0], vehicle.position[1],
@@ -194,13 +195,13 @@ class EgoVehicle(Vehicle):
         
         trajectory = np.array([result[1] for result in results])
         trajectory_costs = np.array([result[2] for result in results])
-        
+        min_dists = np.array([result[3] for result in results])
         # Optimization 3: lane_tendency 
         istar = np.argmin(trajectory_costs)
-        self.u = u_candidates[istar,1]
+        self.u = u_candidates[istar,self.planning_interval-1]
         print(f"Lane tendency : {self.lane_tendencies[istar]}")
-        return trajectory[istar] #trajectory[istar][1,2], trajectory[istar][1,3], #u_candidates[istar,2,0], np.rad2deg(u_candidates[istar,2,1]) #/self.MAX_THROTTLE
-
+        return trajectory[istar], u_candidates[istar,:self.planning_interval].tolist(), min_dists[istar, :self.planning_interval].tolist()  
+    
     def predict(self, xhat_history, S):
         """
         TODO: This function will be replaced with NN model.
@@ -247,13 +248,13 @@ class EgoVehicle(Vehicle):
         #! the safety measure is based on collision checking only
         # TODO: change the cost function that correspond to real cost
         current_cost = (
-            10*(self.goal[1] - x[1])**2
-            + 0.1*a**2
-            + 0.1*dl**2  
-            + 0.1*j**2 +0.1*sr**2
+            100*(self.goal[1] - x[1])**2
+            + a**2
+            + dl**2  
+            + j**2 +sr**2
         )
-
-        return current_cost + self.collision_check(x,xhat) 
+        cost, min_dist = self.collision_check(x,xhat)
+        return current_cost + cost, min_dist
 
 
         #+ 100000*(1/(np.clip(self.spatial_tolerance_ub*Nveh-spatial_risk[0],1e-6,None)**2)-1/(self.spatial_tolerance_ub*Nveh)**2)
@@ -298,5 +299,5 @@ class EgoVehicle(Vehicle):
         # min_dist = np.clip(np.min(dists, axis=(1, 2)),1e-3,None) # (Nveh,)
         min_dist = np.min(dists, axis = (1,2))
         if np.any(min_dist<=1) :
-            return 1e3
-        return 0 
+            return 1e3 , np.min(min_dist)
+        return (3/np.min(min_dist))**2, np.min(min_dist)

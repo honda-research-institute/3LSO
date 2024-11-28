@@ -12,12 +12,21 @@ sys.path.append('../../')
 from src.sgan_source.sgan.predictor import Predictor as SganPredictor
 from src.nnmpc_source.utils.vehicle import Vehicle
 from src.nnmpc_source.model import Model
+from src.nnmpc_source.utils.IDM import IDM_predictor
 np.random.seed(2024)
 
 class SGAN_cost_function(cost_function):
     def __init__(self,ego, manual_config):
         super().__init__(ego, manual_config)
         self.model = Model()
+        if manual_config["prediction"]["method"] == "SGAN":
+            self.predictor_method = "SGAN"
+        elif manual_config["prediction"]["method"] == "IDM":
+            self.predictor_method = "IDM"
+        elif manual_config["prediction"]["method"] == "CV":
+            self.predictor_method = "CV"
+        else:
+            raise Exception("Choose predictor from [SGAN, IDM, CV]")
         # FILENAME = f'{manual_config['prediction']['prediction_model']}.pt'
         if manual_config['prediction']['prediction_model'] == "SGAN_Student":
             self.model.sgan_model = "SGAN_Student.pt"
@@ -90,15 +99,23 @@ class SGAN_cost_function(cost_function):
             # u = u+du*self.dt
             # u = u*0
 
-        xhat_predictions = self.predictor.predict_batch(x_history,xhat_history_temp_2[:,:,:2],Nveh, self.Nsample ,self.dt, self.model.dt, x_reference)
+        if self.predictor_method == "SGAN":
+            xhat_predictions = self.predictor.predict_batch(x_history,xhat_history_temp_2[:,:,:2],Nveh, self.Nsample ,self.dt, self.model.dt, x_reference)
+            #* Masking preceding vehicles with CV predictions
+            obstacle_positions = xhat_predictions[:,1:] # 0th vehicle is the ego vehicle
+            cv_predictions = np.repeat(cv_predictions[:,:,np.newaxis],self.Nsample,axis=2)
+            cv_predictions[~preceding_idxs] = np.transpose(obstacle_positions,[1,0,2,3])
+            cv_predictions = np.transpose(cv_predictions,[1,0,2,3])
+            obstacle_positions = cv_predictions
+        elif self.predictor_method == "IDM":
+            obstacle_positions = IDM_predictor(x_reference, xhat_history[:,-1], self.dt)
+        elif self.predictor_method == "CV":
+            cv_predictions = np.repeat(cv_predictions[:,:,np.newaxis],self.Nsample,axis=2)
+            cv_predictions = np.transpose(cv_predictions,[1,0,2,3])
+            obstacle_positions = cv_predictions
+            
+                
 
-        obstacle_positions = xhat_predictions[:,1:] # 0th vehicle is the ego vehicle
-        
-        cv_predictions = np.repeat(cv_predictions[:,:,np.newaxis],self.Nsample,axis=2)
-        # cv_predictions[~preceding_idxs] = np.transpose(obstacle_positions,[1,0,2,3])
-        cv_predictions = np.transpose(cv_predictions,[1,0,2,3])
-        obstacle_positions = cv_predictions
-        
         spatial_risk,min_dist,lane_dist = self.spatial_risk(x_reference,obstacle_positions) #(Npred,Nsample)
 
         # ! THIS WORKS

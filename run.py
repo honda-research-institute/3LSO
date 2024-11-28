@@ -26,6 +26,7 @@ import matplotlib.pyplot as plt
 import math
 from tqdm import tqdm
 from metadrive.component.pgblock.first_block import FirstPGBlock
+import pickle
 
 class PIDController:
     def __init__(self, kp, ki, kd):
@@ -111,7 +112,7 @@ def main(args):
 
     DT = manual_config["simulation"]["dt"] # dt 
     SIM_TIME = manual_config["simulation"]["SIM_TIME"] # simulation time
-
+    planning_interval = manual_config["simulation"]["interval"]
     # TODO: Structure the categories of the required parameters. Classify which ones to set as argparse and config.json.
     # * Initialize environment
     # vehicle_config = dict(spawn_longitude = manual_config["scenario"][args.scenario]["spawn_longitude"], 
@@ -120,78 +121,91 @@ def main(args):
     # config = dict(map="S", log_level=50, traffic_density=0.6, physics_world_step_size = DT/5)
     
     # env = MetaDriveEnv(config)
-    env = ScenarioEnv(dict(map="S", log_level=50, traffic_density=0, physics_world_step_size = DT/5), 
-                      args, manual_config) ## dt/5 due to decision_repeat = 5.
-    env.reset()
-    vehicles = env.engine.traffic_manager.vehicles
-    EGO = EgoVehicle(vehicles[0], vehicles[1:], args, manual_config) 
- 
-    # * RUN Simulation
-    print("--------------Start running simulations--------------")
-    comp_time_array = []
-    reward_array = []
+    for i in range(20):
+        env = ScenarioEnv(dict(map="S", log_level=50, traffic_density=0, physics_world_step_size = DT/5), 
+                        args, manual_config, i) ## dt/5 due to decision_repeat = 5.
+        env.reset()
+        vehicles = env.engine.traffic_manager.vehicles
+        EGO = EgoVehicle(vehicles[0], vehicles[1:], args, manual_config) 
+    
+        # * RUN Simulation
+        print("--------------Start running simulations--------------")
+        comp_time_array = []
+        reward_array = []
 
-    movie3d = []
-    try:
-        frames = []
-        
-        for t in tqdm(range(int(SIM_TIME/DT)), desc = "Simulation running..."):
-            # vehicles = env.engine.traffic_manager.vehicles
-            if t % 2 == 0:
-            
-                EGO.step(vehicles[0])
-                tic = time.time()
-                waypoints = EGO.get_control(vehicles[1:])
-                toc = time.time()
-                    # print("----WAYPOINTS----")
-                    # print(waypoints)
-                    # print("-------------------")
+        movie3d = []
+        try:
+            frames = []
+            inputs = []
+            infos = []
+            costs = []
+            for t in tqdm(range(int(SIM_TIME/DT)), desc = "Simulation running..."):
+                # vehicles = env.engine.traffic_manager.vehicles
+                if t % planning_interval == 0:
                 
-                comp_time_array.append(toc - tic)
-            
-            # Calculate control inputs
-            # speed = np.linalg.norm(ego.velocity)
-            # steer,goal_idx = pid_steering.calculate_steering(ego.position, ego.heading_theta, waypoints, speed)
-            # # Set throttle (speed control to maintain constant speed)
-            # target_speed = waypoints[goal_idx, 3]  # Target speed in m/s
-            # acc = pid_throttle.calculate_throttle(v_desired = target_speed, v = speed)#/ego.config["max_engine_force"]
-            
-            k = t%2
-            o, r, term, trunc, info = env.step([0, 0])
-            vehicles[0].set_position(waypoints[k,:2])
-            vehicles[0].set_heading_theta(waypoints[k,2])
-            vehicles[0].set_velocity([waypoints[k,3]*np.cos(waypoints[k,2]),waypoints[k,3]*np.sin(waypoints[k,2])])
-            reward_array.append(r)
+                    EGO.step(vehicles[0])
+                    tic = time.time()
+                    waypoints, control_input, cost = EGO.get_control(vehicles[1:])
+                    toc = time.time()
+                        # print("----WAYPOINTS----")
+                        # print(waypoints)
+                        # print("-------------------")
+                    
+                    comp_time_array.append(toc - tic)
+                    inputs += control_input
+                    costs += cost
+                
+                # Calculate control inputs
+                # speed = np.linalg.norm(ego.velocity)
+                # steer,goal_idx = pid_steering.calculate_steering(ego.position, ego.heading_theta, waypoints, speed)
+                # # Set throttle (speed control to maintain constant speed)
+                # target_speed = waypoints[goal_idx, 3]  # Target speed in m/s
+                # acc = pid_throttle.calculate_throttle(v_desired = target_speed, v = speed)#/ego.config["max_engine_force"]
+                
+                k = t%planning_interval
+                o, r, term, trunc, info = env.step([0, 0])
+                vehicles[0].set_position(waypoints[k,:2])
+                vehicles[0].set_heading_theta(waypoints[k,2])
+                vehicles[0].set_velocity([waypoints[k,3]*np.cos(waypoints[k,2]),waypoints[k,3]*np.sin(waypoints[k,2])])
+                reward_array.append(r)
 
-            ######## TOP DOWN RENDER #########
-            text = np.round(waypoints[k],2)
-            text2 = np.round(vehicles[0].position,2)
-            frame = env.render(mode="topdown",
-                                window=False,
-                                # text={"target": f"{text}",
-                                #       "current": f"{text2}"},
-                                screen_size=(800, 300))
-            # if t == 80:
-            # plt.imshow(frame)
-            # plt.show()
-            frames.append(frame)
-        
-        logging.info(f"Average control compute time is {np.mean(comp_time_array)}")
-        logging.info(f"Reward sum is {np.sum(reward_array)}")
-    except:
-        env.close()
+                ######## TOP DOWN RENDER #########
+                text = np.round(waypoints[k],2)
+                text2 = np.round(vehicles[0].position,2)
+                frame = env.render(mode="topdown",
+                                    window=False,
+                                    # text={"target": f"{text}",
+                                    #       "current": f"{text2}"},
+                                    screen_size=(800, 300))
+                # if t == 80:
+                # plt.imshow(frame)
+                # plt.show()
+                frames.append(frame)
+                infos.append(info)
+                
+            
+            logging.info(f"Average control compute time is {np.mean(comp_time_array)}")
+            logging.info(f"Reward sum is {np.sum(reward_array)}")
+        except:
+            env.close()
+            FILENAME = f'{datetime.now().replace(microsecond=0)}_{args.scenario}_{args.object_policy}'
+            with open(f"./data/{FILENAME}.pkl", "wb") as f:
+                pickle.dump(infos,f)
+                pickle.dump(inputs,f)
+                pickle.dump(costs,f)
+                pickle.dump(comp_time_array,f)
 
-    if args.save_gif:
-        FILENAME = f'{datetime.now().replace(microsecond=0)}_{args.scenario}_{args.object_policy}'
-        generate_gif(frames, f"./videos/{FILENAME}.gif",duration = 50)
-        Image(open(f"./videos/{FILENAME}.gif", 'rb').read())
+        if args.save_gif:
+            FILENAME = f'{datetime.now().replace(microsecond=0)}_{args.scenario}_{args.object_policy}'
+            generate_gif(frames, f"./videos/{FILENAME}.gif",duration = 50)
+            Image(open(f"./videos/{FILENAME}.gif", 'rb').read())
 
 
 if __name__ == "__main__":
     # * Parsing simulation configuration
     parser = argparse.ArgumentParser()
-    parser.add_argument("--scenario", type=str, default="follow", help="[merge, follow]")
-    parser.add_argument("--object_policy", type=str, default="CV", help="[CV, IDM]")
+    parser.add_argument("--scenario", type=str, default="merge", help="[merge, follow]")
+    parser.add_argument("--object_policy", type=str, default="IDM", help="[CV, IDM]")
     parser.add_argument("--save_gif", type=bool,
                         default=True, help="Select True to save gif")
     args = parser.parse_args()

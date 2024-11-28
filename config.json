@@ -27,22 +27,24 @@
         
     },
     "simulation":{
+        "interval": 1,
         "dt" : 0.3,
         "SIM_TIME" : 50
     },
     "planning":{
         "T" : 3,
-        "USE_SPLINE": true,
+        "USE_SPLINE": false,
         "TARGET_SAMPLES" : 20,
         "TARGET_DIST" : 100,
         "TARGET_ANGLE_RANGE" : 30,
-        "dyn": "CV",
-        "lane_tendencies" : [0,0.5,1]
+        "dyn": "IDM",
+        "lane_tendencies" : [0]
     },
     "prediction":{
         "S" : 6,
         "confidence" : 0.9,
-        "prediction_model" : "SGAN_Student"
+        "method" : "SGAN",
+        "prediction_model" : "SGAN_Teacher"
     },
     "control":{
         "j_min" : -0.5,

@@ -52,13 +52,17 @@ class ScenarioManager(BaseManager):
                 v.after_step()
 
 class ScenarioEnv(MetaDriveEnv):
-    def __init__(self, config, args, manual_config):
+    def __init__(self, config, args, manual_config,k):
+        np.random.seed(k)
         self.args = args
         self.manual_config = manual_config
+        vx, vy = manual_config["scenario"][args.scenario]["spawn_velocity"][0],manual_config["scenario"][args.scenario]["spawn_velocity"][1]
+        randx = np.random.uniform(vx-0.5,vx+0.5)
+        randy = np.random.uniform(vy-0.1,vy+0.1)
         
         config["vehicle_config"] = dict(spawn_longitude = manual_config["scenario"][args.scenario]["spawn_longitude"], 
                                         spawn_lateral = manual_config["scenario"][args.scenario]["spawn_latitude"],
-                                        spawn_velocity = manual_config["scenario"][args.scenario]["spawn_velocity"])
+                                        spawn_velocity = [randx,randy])
         super(ScenarioEnv, self).__init__(config)
     
     def setup_engine(self):

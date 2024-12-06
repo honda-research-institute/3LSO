@@ -52,12 +52,12 @@ class Vehicle:
         l_r = 0.5
         if dyn == "IDM":
             s_0 = 8 #minimum safe distance for IDM
-            a_max = 1.5 # maximum acceleration for IDM
+            a_max = 0.5 # maximum acceleration for IDM
             b = 1 #comfortable deceleration for IDM
             delta = 4 #-- acceleration exponent for IDM (typically 4)
             
-            T=0.5
-            v_des = 3#-- desired speed for each vehicle
+            T=1.2
+            v_des = 2#-- desired speed for each vehicle
             Nveh = x.shape[0]
             # v_des = np.random.uniform(0.5,2,(x.shape[0]+1,))
             # T = np.random.uniform(0.5,2,(x.shape[0]+1,)) #1.8 # desired time headway for IDM
@@ -72,13 +72,14 @@ class Vehicle:
             distances = np.sqrt(x_diff**2 + y_diff**2)
 
             # Mask for vehicles that are in front and in the near lane
-            front_mask = (x_diff < 0) & (np.abs(y_diff) <= 2) # 1m is the threshold to consider as near lane
+            front_mask = (x_diff < 0) & (np.abs(y_diff) <= 1) # 1m is the threshold to consider as near lane
 
             # Set distance to infinity where vehicles are not in front or not in the same lane
             distances = np.where(front_mask, distances, np.inf)
 
             # Find the nearest lead vehicle for each vehicle
             min_distances = np.min(distances, axis=1)
+            
             lead_vehicle_indices = np.argmin(distances, axis=1)
 
             # Get the velocities of the lead vehicles

@@ -62,7 +62,7 @@ class EgoVehicle(Vehicle):
         self.cost_functions = {
             lane_tendency: cost_function(ego, manual_config) for lane_tendency in self.lane_tendencies
         }
-        self.executor = ThreadPoolExecutor(max_workers = 3)
+        self.executor = ThreadPoolExecutor(max_workers = len(self.lane_tendencies))
         
         #* Log data for analysis
         self.log = {
@@ -166,7 +166,9 @@ class EgoVehicle(Vehicle):
             x_history = np.append(x_history, np.array(x)[np.newaxis, :], axis=0)
 
             current_cost, min_dist = self.evaluate_current_state(a, dl, ustar[0], ustar[1], x, xhat_history[:,-1]) # cost[istar]
-            trajectory_cost += 0.9**k * current_cost
+            trajectory_cost += 0.7**k * current_cost
+            # _, min_dist = self.evaluate_current_state(a, dl, ustar[0], ustar[1], x, xhat_history[:,-1]) # cost[istar]
+            # trajectory_cost += 0.7**k * cost[istar]
             min_dists.append(min_dist)
         return u_plan, trajectory, trajectory_cost, min_dists
     
@@ -248,10 +250,10 @@ class EgoVehicle(Vehicle):
         #! the safety measure is based on collision checking only
         # TODO: change the cost function that correspond to real cost
         current_cost = (
-            100*(self.goal[1] - x[1])**2
-            + a**2
-            + dl**2  
-            + j**2 +sr**2
+            10*(self.goal[1] - x[1])**2
+            + 1*a**2
+            + 1*dl**2  
+            + 1*j**2 +1*sr**2
         )
         cost, min_dist = self.collision_check(x,xhat)
         return current_cost + cost, min_dist
@@ -298,6 +300,6 @@ class EgoVehicle(Vehicle):
         # Get minimum distance and ensure non-negative
         # min_dist = np.clip(np.min(dists, axis=(1, 2)),1e-3,None) # (Nveh,)
         min_dist = np.min(dists, axis = (1,2))
-        if np.any(min_dist<=1) :
-            return 1e3 , np.min(min_dist)
-        return (3/np.min(min_dist))**2, np.min(min_dist)
+        # if np.any(min_dist<=1) :
+        #     return 1e3 , np.min(min_dist)
+        return (10/np.min(np.clip(min_dist,1,None)-1+1e-4))**2, np.min(min_dist)

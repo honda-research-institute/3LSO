@@ -21,6 +21,13 @@ class SGAN_cost_function(cost_function):
         self.model = Model()
         if manual_config["prediction"]["method"] == "SGAN":
             self.predictor_method = "SGAN"
+            if manual_config['prediction']['prediction_model'] == "SGAN_Student":
+                self.model.sgan_model = "SGAN_Student.pt"
+            elif manual_config['prediction']['prediction_model'] == "SGAN_Teacher":
+                self.model.sgan_model = "SGAN_Teacher.pt"
+            else: 
+                raise Exception("Only SGAN_Student and SGAN_Teacher is supported.")
+            self.predictor = SganPredictor(os.path.join(sgan_source_path,'model', self.model.sgan_model), self.S) # NN predictor
         elif manual_config["prediction"]["method"] == "IDM":
             self.predictor_method = "IDM"
         elif manual_config["prediction"]["method"] == "CV":
@@ -28,17 +35,12 @@ class SGAN_cost_function(cost_function):
         else:
             raise Exception("Choose predictor from [SGAN, IDM, CV]")
         # FILENAME = f'{manual_config['prediction']['prediction_model']}.pt'
-        if manual_config['prediction']['prediction_model'] == "SGAN_Student":
-            self.model.sgan_model = "SGAN_Student.pt"
-        elif manual_config['prediction']['prediction_model'] == "SGAN_Teacher":
-            self.model.sgan_model = "SGAN_Teacher.pt"
-        else: 
-            raise Exception("Only SGAN_Student and SGAN_Teacher is supported.")
+        
         
         # with ThreadPoolExecutor(max_workers=1) as executor:
         #     futures = [executor.submit(SganPredictor, os.path.join(sgan_source_path, 'model', self.model.sgan_model), self.S) for _ in range(1)]
         #     self.predictors = [future.result() for future in futures]
-        self.predictor = SganPredictor(os.path.join(sgan_source_path,'model', self.model.sgan_model), self.S) # NN predictor 
+         
     def evaluate_cost(self,x_cur, X, x_history, xhat_history,u,target,goal,cv_predictions):
         '''
         X: Array of (N_j x N_sr, 4): array of all possible states that are induced by applying every action pairs to current state x_cur.
@@ -119,16 +121,39 @@ class SGAN_cost_function(cost_function):
         spatial_risk,min_dist,lane_dist = self.spatial_risk(x_reference,obstacle_positions) #(Npred,Nsample)
 
         # ! THIS WORKS
+        # track_cost = (
+        #     # 2000*np.tanh(0.1*((target[0] - x_reference[:,:,0]) ** 2 + (target[1] - x_reference[:,:,1]) ** 2)) # target position tracking
+        #     500*((target[0] - x_reference[:,:,0]) ** 2 + (target[1] - x_reference[:,:,1]) ** 2)
+        #     + 150*(x_reference[:,:,3] - vref) ** 2 # target velocity tracking 
+        #     + 500*(x_reference[:,:,2])**2 # target heading angle tracking
+        #     + 1000*(u_reference[:,:,0])**2 + 10000*(u_reference[:,:,1])**2  # control effort
+        #     # + 40*j**2 + 80*sr**2
+        #     + 2000*(du_reference[:,:,0])**2 + 20000*(du_reference[:,:,1])**2 # driving comfort 
+        #     + 20000*spatial_risk + 100*np.log(1+np.exp(-5*(min_dist-2))) + 5*np.log(1+np.exp(-5*(lane_dist-1)))#+100*np.exp(-10*(lane_dist)) #10*(1/min_dist)**2 + 0.1*(1/lane_dist)**2 #+ 2*(1/min_dist)**2 + 1*(1/lane_dist)**2# 20*np.exp(-(min_dist-0.5)) #+10*np.exp(-10*(lane_dist-0.2))
+        # ) #(N_pred,Nsample)
+
+        # track_cost = (
+        #     # 2000*np.tanh(0.1*((target[0] - x_reference[:,:,0]) ** 2 + (target[1] - x_reference[:,:,1]) ** 2)) # target position tracking
+        #     300*((target[0] - x_reference[:,:,0]) ** 2 + (target[1] - x_reference[:,:,1]) ** 2)
+        #     + 200*(x_reference[:,:,3] - vref) ** 2 # target velocity tracking 
+        #     # + 100*(x_reference[:,:,2])**2 # target heading angle tracking
+        #     + 200*(u_reference[:,:,0])**2 + 1000*(u_reference[:,:,1])**2  # control effort
+        #     # + 40*j**2 + 80*sr**2
+        #     + 200*(du_reference[:,:,0])**2 + 1000*(du_reference[:,:,1])**2 # driving comfort 
+        #     + 8000*spatial_risk #+ 40*np.log(1+np.exp(-5*(min_dist-1))) #+ 5*np.log(1+np.exp(-5*(lane_dist-1)))#+100*np.exp(-10*(lane_dist)) #10*(1/min_dist)**2 + 0.1*(1/lane_dist)**2 #+ 2*(1/min_dist)**2 + 1*(1/lane_dist)**2# 20*np.exp(-(min_dist-0.5)) #+10*np.exp(-10*(lane_dist-0.2))
+        # ) 
+
         track_cost = (
             # 2000*np.tanh(0.1*((target[0] - x_reference[:,:,0]) ** 2 + (target[1] - x_reference[:,:,1]) ** 2)) # target position tracking
-            150*((target[0] - x_reference[:,:,0]) ** 2 + (target[1] - x_reference[:,:,1]) ** 2)
-            + 50*(x_reference[:,:,3] - vref) ** 2 # target velocity tracking 
-            + 500*(x_reference[:,:,2])**2 # target heading angle tracking
-            + 50*(u_reference[:,:,0])**2 + 200*(u_reference[:,:,1])**2  # control effort
+            300*((target[0] - x_reference[:,:,0]) ** 2 + (target[1] - x_reference[:,:,1]) ** 2)
+            + 300*((x_reference[:,:,3] - vref) ** 2) # target velocity tracking 
+            # + 300*(x_reference[:,:,2])**2 # target heading angle tracking
+            + 500*(u_reference[:,:,0])**2 + 2000*(u_reference[:,:,1])**2  # control effort
             # + 40*j**2 + 80*sr**2
-            + 50*(du_reference[:,:,0])**2 + 2000*(du_reference[:,:,1])**2 # driving comfort 
-            + 3000*spatial_risk + 30*np.log(1+np.exp(-10*(min_dist-2))) + 5*np.log(1+np.exp(-5*(lane_dist-1)))#+100*np.exp(-10*(lane_dist)) #10*(1/min_dist)**2 + 0.1*(1/lane_dist)**2 #+ 2*(1/min_dist)**2 + 1*(1/lane_dist)**2# 20*np.exp(-(min_dist-0.5)) #+10*np.exp(-10*(lane_dist-0.2))
-        ) #(N_pred,Nsample)
+            + 500*(du_reference[:,:,0])**2 + 2000*(du_reference[:,:,1])**2 # driving comfort 
+            + 50*spatial_risk + 120*np.log(1+np.exp(-10*(min_dist-1.5))) #+ 5*np.log(1+np.exp(-5*(lane_dist-1)))#+100*np.exp(-10*(lane_dist)) #10*(1/min_dist)**2 + 0.1*(1/lane_dist)**2 #+ 2*(1/min_dist)**2 + 1*(1/lane_dist)**2# 20*np.exp(-(min_dist-0.5)) #+10*np.exp(-10*(lane_dist-0.2))
+        ) 
+
 
         track_max = np.max(track_cost,axis=1) #for normalization 
         risk_max = np.max(spatial_risk,axis=1) # for normalization
@@ -140,8 +165,8 @@ class SGAN_cost_function(cost_function):
         
         # the cost is overrded with infinity if it is not feasible
         # TODO: add other constraints here if needed
-        # cost[v<0] = np.inf
-        # cost[v>self.vmax] = np.inf
+        cost[v<0] = np.inf
+        cost[v>self.vmax] = np.inf
         # cost[min_dist[0] < 1] = np.inf
         # cost[np.any(lane_dist< 0.1,axis=0)] = 1e6
         cost = self.convolve(cost)
@@ -211,7 +236,11 @@ class SGAN_cost_function(cost_function):
         dists = np.sqrt(dist_x**2 + dist_y**2) - (w + wi)[:,:,:,np.newaxis,np.newaxis]  # Shape (Npred,Nsample,Nveh, 3, 3)
 
         # Get minimum distance and ensure non-negative
-        min_dist = np.min(dists, axis=(3, 4, 2)) #(Npred, Nsample)
+        min_dist = np.min(dists, axis=(3, 4)) #(Npred, Nsample)
+        masked_dists = np.where(min_dist< 2, min_dist, np.nan)
+        min_dist = np.nanmean(masked_dists,axis=2)
+        min_dist = np.nan_to_num(min_dist, nan=2)
+
         w = np.power(1/self.confidence, np.arange(0, min_dist.shape[0], 1))
         min_dist = min_dist * np.repeat(w[:,np.newaxis],min_dist.shape[1],axis=1)
         # min_dist = np.mean(min_dist, axis =2 )
@@ -259,7 +288,7 @@ class SGAN_cost_function(cost_function):
         # risk = np.sum(dist * skew, axis=1)[:, :, 0, 0]  + lane_risk[:,:,0]
         # spatial_risk = np.mean(dist * skew, axis=1)[:, :, 0, 0]  #+ lane_risk[:,:,0]
         min_dist = self.collision_check(candidates_expanded, xhat_predictions) #(Npred, Nsample)
-        spatial_risk = 5*np.mean(dist * skew, axis=1)[:, :, 0, 0]  + 0.25*lane_risk[:,:,0]
+        spatial_risk = 5*np.max(dist * skew, axis=1)[:, :, 0, 0]  + 0.25*lane_risk[:,:,0]
 
         # risk = 0.5*collision_risk + 0.5*spatial_risk+0.2*lane_risk[:,:,0] #0.5*spatial_risk+0.5*collision_risk + 0.2*lane_risk[:,:,0]
         return spatial_risk, min_dist, lane_dist[:,:,0] #np.clip(lane_dist[:,:,0],1e-3,None)

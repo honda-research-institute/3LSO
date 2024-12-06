@@ -37,7 +37,8 @@ class ScenarioManager(BaseManager):
     def after_step(self):
         if self.episode_step == self.generate_ts:
             for x,y,phi,vel in self.manual_config["scenario"][self.scenario]["vehicles"]:
-                v = self.spawn_object(DefaultVehicle, vehicle_config = dict(), position = [x,y], heading = phi)
+                xr = np.random.uniform(-1,1)
+                v = self.spawn_object(DefaultVehicle, vehicle_config = dict(), position = [x+xr,y], heading = phi)
                 v.set_velocity([vel*np.cos(phi),vel*np.sin(phi)])
                 self.generated_v.append(v)                
                 
@@ -45,7 +46,7 @@ class ScenarioManager(BaseManager):
             if self.object_policy == "IDM":
                 for v in self.generated_v:
                     self.vehicle_policies[v] = IDMPolicy(v,0)
-                    self.vehicle_policies[v].enable_lane_change=False
+                    self.vehicle_policies[v].enable_lane_change=True
 
         elif self.generated_v:
             for v in self.generated_v:
@@ -59,8 +60,10 @@ class ScenarioEnv(MetaDriveEnv):
         vx, vy = manual_config["scenario"][args.scenario]["spawn_velocity"][0],manual_config["scenario"][args.scenario]["spawn_velocity"][1]
         randx = np.random.uniform(vx-0.5,vx+0.5)
         randy = np.random.uniform(vy-0.1,vy+0.1)
+
+        xx= np.random.uniform(-2,2)
         
-        config["vehicle_config"] = dict(spawn_longitude = manual_config["scenario"][args.scenario]["spawn_longitude"], 
+        config["vehicle_config"] = dict(spawn_longitude = manual_config["scenario"][args.scenario]["spawn_longitude"]+xx, 
                                         spawn_lateral = manual_config["scenario"][args.scenario]["spawn_latitude"],
                                         spawn_velocity = [randx,randy])
         super(ScenarioEnv, self).__init__(config)

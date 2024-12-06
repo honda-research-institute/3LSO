@@ -121,9 +121,10 @@ def main(args):
     # config = dict(map="S", log_level=50, traffic_density=0.6, physics_world_step_size = DT/5)
     
     # env = MetaDriveEnv(config)
+    
     for i in range(20):
         env = ScenarioEnv(dict(map="S", log_level=50, traffic_density=0, physics_world_step_size = DT/5), 
-                        args, manual_config, i) ## dt/5 due to decision_repeat = 5.
+                        args, manual_config, i) ## dt/5 due to decision_repeat = 5.    
         env.reset()
         vehicles = env.engine.traffic_manager.vehicles
         EGO = EgoVehicle(vehicles[0], vehicles[1:], args, manual_config) 
@@ -138,14 +139,14 @@ def main(args):
             frames = []
             inputs = []
             infos = []
-            costs = []
+            min_dists = []
             for t in tqdm(range(int(SIM_TIME/DT)), desc = "Simulation running..."):
                 # vehicles = env.engine.traffic_manager.vehicles
                 if t % planning_interval == 0:
                 
                     EGO.step(vehicles[0])
                     tic = time.time()
-                    waypoints, control_input, cost = EGO.get_control(vehicles[1:])
+                    waypoints, control_input, min_dist = EGO.get_control(vehicles[1:])
                     toc = time.time()
                         # print("----WAYPOINTS----")
                         # print(waypoints)
@@ -153,7 +154,7 @@ def main(args):
                     
                     comp_time_array.append(toc - tic)
                     inputs += control_input
-                    costs += cost
+                    min_dists += min_dist
                 
                 # Calculate control inputs
                 # speed = np.linalg.norm(ego.velocity)
@@ -177,10 +178,14 @@ def main(args):
                                     # text={"target": f"{text}",
                                     #       "current": f"{text2}"},
                                     screen_size=(800, 300))
-                # if t == 80:
-                # plt.imshow(frame)
-                # plt.show()
+                # if t >= 30:
+                #     plt.imshow(frame)
+                #     plt.show()
                 frames.append(frame)
+                try:
+                    info["xy"] += waypoints[k,:2].tolist()
+                except:
+                    info["xy"] = waypoints[k,:2].tolist()
                 infos.append(info)
                 
             
@@ -192,8 +197,17 @@ def main(args):
             with open(f"./data/{FILENAME}.pkl", "wb") as f:
                 pickle.dump(infos,f)
                 pickle.dump(inputs,f)
-                pickle.dump(costs,f)
+                pickle.dump(min_dists,f)
                 pickle.dump(comp_time_array,f)
+        finally:
+            env.close()
+            FILENAME = f'{datetime.now().replace(microsecond=0)}_{args.scenario}_{args.object_policy}'
+            with open(f"./data/{FILENAME}.pkl", "wb") as f:
+                pickle.dump(infos,f)
+                pickle.dump(inputs,f)
+                pickle.dump(min_dists,f)
+                pickle.dump(comp_time_array,f)
+
 
         if args.save_gif:
             FILENAME = f'{datetime.now().replace(microsecond=0)}_{args.scenario}_{args.object_policy}'

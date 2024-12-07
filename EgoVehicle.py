@@ -300,6 +300,7 @@ class EgoVehicle(Vehicle):
         # Get minimum distance and ensure non-negative
         # min_dist = np.clip(np.min(dists, axis=(1, 2)),1e-3,None) # (Nveh,)
         min_dist = np.min(dists, axis = (1,2))
-        # if np.any(min_dist<=1) :
-        #     return 1e3 , np.min(min_dist)
-        return (10/np.min(np.clip(min_dist,1,None)-1+1e-4))**2, np.min(min_dist)
+        if np.any(min_dist<=1) :
+            return 1e3 , np.min(min_dist)
+        return 0, np.min(min_dist)
+        # return (10/np.min(np.clip(min_dist,1,None)-1+1e-4))**2, np.min(min_dist)

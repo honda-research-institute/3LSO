@@ -32,6 +32,17 @@ class ScenarioManager(BaseManager):
                         policy = self.vehicle_policies[v]
                         action = policy.act(v)  # Calculate IDM action
                         v.before_step([action[0],action[1]])   # Apply IDM action to vehicle
+            elif self.object_policy == "custom2":
+                for i, v in enumerate(self.generated_v):
+                    if i in {0,1,2}:
+                        speed = self.manual_config["scenario"][self.scenario]["vehicles"][i][3]
+                        phi = v.heading_theta
+                        v.set_velocity([speed*np.cos(phi), speed*np.sin(phi)])
+                    else:
+                        # Get the action from IDM policy and apply it
+                        policy = self.vehicle_policies[v]
+                        action = policy.act(v)  # Calculate IDM action
+                        v.before_step([action[0],action[1]])   # Apply IDM action to vehicle
 
                 
     def after_step(self):
@@ -43,7 +54,7 @@ class ScenarioManager(BaseManager):
                 self.generated_v.append(v)                
                 
             # Assign IDMPolicy to each vehicle if needed
-            if self.object_policy == "IDM":
+            if self.object_policy in {"IDM","custom2"}:
                 for v in self.generated_v:
                     self.vehicle_policies[v] = IDMPolicy(v,0)
                     self.vehicle_policies[v].enable_lane_change=True
@@ -59,13 +70,13 @@ class ScenarioEnv(MetaDriveEnv):
         self.manual_config = manual_config
         vx, vy = manual_config["scenario"][args.scenario]["spawn_velocity"][0],manual_config["scenario"][args.scenario]["spawn_velocity"][1]
         randx = np.random.uniform(vx-0.5,vx+0.5)
-        randy = np.random.uniform(vy-0.1,vy+0.1)
+        # randy = np.random.uniform(vy-0.1,vy+0.1)
 
         xx= np.random.uniform(-2,2)
         
         config["vehicle_config"] = dict(spawn_longitude = manual_config["scenario"][args.scenario]["spawn_longitude"]+xx, 
                                         spawn_lateral = manual_config["scenario"][args.scenario]["spawn_latitude"],
-                                        spawn_velocity = [randx,randy])
+                                        spawn_velocity = [randx,vy])
         super(ScenarioEnv, self).__init__(config)
     
     def setup_engine(self):

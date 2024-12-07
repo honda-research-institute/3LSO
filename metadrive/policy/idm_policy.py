@@ -192,7 +192,7 @@ class IDMPolicy(BasePolicy):
     MAX_STEERING_ANGLE = np.pi / 3  # [rad]
     DELTA_SPEED = 4  # [m/s]
 
-    DISTANCE_WANTED = 4
+    DISTANCE_WANTED = 12
     """Desired jam distance to the front vehicle."""
 
     TIME_WANTED = 1.2  # [s]

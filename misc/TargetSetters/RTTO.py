@@ -95,7 +95,7 @@ class RTTO:
         min_dist = np.min(dists, axis=(3, 4)) #(Npred, Nsample)
         masked_dists = np.where(min_dist< 2, min_dist, np.nan)
         min_dist = np.nanmean(masked_dists,axis=2)
-        min_dist = np.nan_to_num(min_dist, nan=2)
+        min_dist = np.nan_to_num(min_dist, nan=1e2)
         w = np.power(1/self.confidence, np.arange(0, min_dist.shape[0], 1))
         min_dist = min_dist * np.repeat(w[:,np.newaxis],min_dist.shape[1],axis=1)
         # return np.exp(-min_dist).T#1/(10*min_dist**2)#
@@ -148,14 +148,14 @@ class RTTO:
         skew = 1 / (1+np.exp(self.alpha_s*np.transpose(p_bar, [0, 1, 2, 4, 3])@v_bar))
 
         p_road_1 = np.array([[0],[-0.5]])
-        p_road_2 = np.array([[0],[9]])
+        p_road_2 = np.array([[0],[4]])
         p_bar_lane_1 = (p_ego[0] - p_road_1)[:,:,1]
         p_bar_lane_2 = (p_road_2 - p_ego[0])[:,:,1]
         np.clip(p_bar_lane_1,0,None,out=p_bar_lane_1)
         np.clip(p_bar_lane_2,0,None,out=p_bar_lane_2)
         lane_risk = np.exp(-self.alpha_r*p_bar_lane_1*p_bar_lane_1) + np.exp(-self.alpha_r*p_bar_lane_2*p_bar_lane_2)
         # risk = np.sum(dist * skew, axis=0)[:, :, 0, 0]  + lane_risk[:,:,0]
-        spatial_risk = np.max(dist * skew, axis=0)[:, :, 0, 0] 
+        spatial_risk = np.sum(dist * skew, axis=0)[:, :, 0, 0] 
         collision_risk = self.collision_check(waypoints, xhat_predictions) #(Npred, Nsample)
         risk = 0.4*collision_risk + 0.6*spatial_risk.T + 0.2*lane_risk[:,:,0].T #0.5*spatial_risk.T+0.5*collision_risk + 0.2*lane_risk[:,:,0].T
         return risk.T

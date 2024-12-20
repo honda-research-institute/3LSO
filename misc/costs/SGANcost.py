@@ -121,27 +121,27 @@ class SGAN_cost_function(cost_function):
         spatial_risk,min_dist,lane_dist = self.spatial_risk(x_reference,obstacle_positions) #(Npred,Nsample)
 
         # ! THIS WORKS
+        # track_cost = (
+        #     # 2000*np.tanh(0.1*((target[0] - x_reference[:,:,0]) ** 2 + (target[1] - x_reference[:,:,1]) ** 2)) # target position tracking
+        #     300*((target[0] - x_reference[:,:,0]) ** 2 + (target[1] - x_reference[:,:,1]) ** 2)
+        #     + 300*((x_reference[:,:,3] - vref) ** 2) # target velocity tracking 
+        #     + 200*(x_reference[:,:,2])**2 # target heading angle tracking
+        #     + 300*(u_reference[:,:,0])**2 + 2000*(u_reference[:,:,1])**2  # control effort
+        #     # + 40*j**2 + 80*sr**2
+        #     + 300*(du_reference[:,:,0])**2 + 2000*(du_reference[:,:,1])**2 # driving comfort 
+        #     + 50*spatial_risk + 100*np.log(1+np.exp(-10*(min_dist-1.5)))**2 + np.log(1+np.exp(-10*(lane_dist-1)))**2#+100*np.exp(-10*(lane_dist)) #10*(1/min_dist)**2 + 0.1*(1/lane_dist)**2 #+ 2*(1/min_dist)**2 + 1*(1/lane_dist)**2# 20*np.exp(-(min_dist-0.5)) #+10*np.exp(-10*(lane_dist-0.2))
+        # ) 
+
         track_cost = (
             # 2000*np.tanh(0.1*((target[0] - x_reference[:,:,0]) ** 2 + (target[1] - x_reference[:,:,1]) ** 2)) # target position tracking
             300*((target[0] - x_reference[:,:,0]) ** 2 + (target[1] - x_reference[:,:,1]) ** 2)
             + 300*((x_reference[:,:,3] - vref) ** 2) # target velocity tracking 
-            # + 200*(x_reference[:,:,2])**2 # target heading angle tracking
-            + 500*(u_reference[:,:,0])**2 + 2000*(u_reference[:,:,1])**2  # control effort
+            + 500*(x_reference[:,:,2])**2 # target heading angle tracking
+            + 300*(u_reference[:,:,0])**2 + 2000*(u_reference[:,:,1])**2  # control effort
             # + 40*j**2 + 80*sr**2
-            + 500*(du_reference[:,:,0])**2 + 2000*(du_reference[:,:,1])**2 # driving comfort 
-            + 50*spatial_risk + 120*np.log(1+np.exp(-10*(min_dist-1.5))) #+ 5*np.log(1+np.exp(-5*(lane_dist-1)))#+100*np.exp(-10*(lane_dist)) #10*(1/min_dist)**2 + 0.1*(1/lane_dist)**2 #+ 2*(1/min_dist)**2 + 1*(1/lane_dist)**2# 20*np.exp(-(min_dist-0.5)) #+10*np.exp(-10*(lane_dist-0.2))
+            + 300*(du_reference[:,:,0])**2 + 2000*(du_reference[:,:,1])**2 # driving comfort 
+            + 25*spatial_risk + 100*np.log(1+np.exp(-10*(min_dist-1)))**2 + np.log(1+np.exp(-10*(lane_dist-1)))**2#+100*np.exp(-10*(lane_dist)) #10*(1/min_dist)**2 + 0.1*(1/lane_dist)**2 #+ 2*(1/min_dist)**2 + 1*(1/lane_dist)**2# 20*np.exp(-(min_dist-0.5)) #+10*np.exp(-10*(lane_dist-0.2))
         ) 
-
-        # track_cost = (
-        #     # 2000*np.tanh(0.1*((target[0] - x_reference[:,:,0]) ** 2 + (target[1] - x_reference[:,:,1]) ** 2)) # target position tracking
-        #     300*((target[0] - x_reference[:,:,0]) ** 2 + (target[1] - x_reference[:,:,1]) ** 2)
-        #     + 200*(x_reference[:,:,3] - vref) ** 2 # target velocity tracking 
-        #     # + 100*(x_reference[:,:,2])**2 # target heading angle tracking
-        #     + 200*(u_reference[:,:,0])**2 + 1000*(u_reference[:,:,1])**2  # control effort
-        #     # + 40*j**2 + 80*sr**2
-        #     + 200*(du_reference[:,:,0])**2 + 1000*(du_reference[:,:,1])**2 # driving comfort 
-        #     + 8000*spatial_risk #+ 40*np.log(1+np.exp(-5*(min_dist-1))) #+ 5*np.log(1+np.exp(-5*(lane_dist-1)))#+100*np.exp(-10*(lane_dist)) #10*(1/min_dist)**2 + 0.1*(1/lane_dist)**2 #+ 2*(1/min_dist)**2 + 1*(1/lane_dist)**2# 20*np.exp(-(min_dist-0.5)) #+10*np.exp(-10*(lane_dist-0.2))
-        # ) 
 
         # track_cost = (
         #     # 2000*np.tanh(0.1*((target[0] - x_reference[:,:,0]) ** 2 + (target[1] - x_reference[:,:,1]) ** 2)) # target position tracking
@@ -237,8 +237,8 @@ class SGAN_cost_function(cost_function):
 
         # Get minimum distance and ensure non-negative
         min_dist = np.min(dists, axis=(3, 4)) #(Npred, Nsample)
-        masked_dists = np.where(min_dist< 2, min_dist, np.nan)
-        min_dist = np.nanmean(masked_dists,axis=2)
+        masked_dists = np.where(min_dist< 5, min_dist, np.nan)
+        min_dist = np.nanmin(masked_dists,axis=2)
         min_dist = np.nan_to_num(min_dist, nan=1e2)
 
         w = np.power(1/self.confidence, np.arange(0, min_dist.shape[0], 1))

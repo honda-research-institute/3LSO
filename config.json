@@ -7,7 +7,7 @@
             "spawn_latitude": 3.5,
             "spawn_velocity": [1,0],
             "goal": [0,3.5],
-            "vehicles": [[8.0,3.5,0,2], [30,3.5,0,1.1], [38,3.5,0,1.1], [22,7,0,1.2], [31,7,0,1.2], [12,7,0,1], [35,0,0,1.2]]
+            "vehicles": [[6.0,3.5,0,2], [30,3.5,0,1], [38,3.5,0,1.5], [22,7,0,1], [31,7,0,1], [15,7,0,1], [13,0,0,1],[35,0,0,1.2]]
         },
         "merge":
         {
@@ -31,7 +31,7 @@
             "spawn_latitude": 7,
             "spawn_velocity": [0.5,0],
             "goal": [0,3.5],
-            "vehicles": [[10,7,0,3],[18,7,0,3],[25,7,0,3],[38,7,0,3],[2,3.5,0,3], [10,0,0,3],[13,3.5,0,3.0], [28,0,0,3],[24,3.5,0,3], [31,3.5,0,3],[37,0,0,3]]
+            "vehicles": [[10,7,0,3],[18,7,0,3],[25,7,0,3],[38,7,0,3],[2,3.5,0,3], [6,0,0,3],[13,3.5,0,3.0], [28,0,0,3],[24,3.5,0,3], [31,3.5,0,3],[37,0,0,3]]
         },
         "testing":
         {
@@ -43,24 +43,24 @@
         
     },
     "simulation":{
-        "interval": 2,
+        "interval": 1,
         "dt" : 0.3,
-        "SIM_TIME" : 30
+        "SIM_TIME" : 60
     },
     "planning":{
-        "T" : 3,
+        "T" : 1.5,
         "USE_SPLINE": false,
         "TARGET_SAMPLES" : 20,
         "TARGET_DIST" : 100,
         "TARGET_ANGLE_RANGE" :80,
         "dyn": "IDM",
-        "lane_tendencies" : [0,0.5,1]
+        "lane_tendencies" : [1]
     },
     "prediction":{
-        "S" : 5,
+        "S" : 1,
         "confidence" : 0.9,
-        "method" : "SGAN",
-        "prediction_model" : "SGAN_Teacher"
+        "method" : "CV",
+        "prediction_model" : "SGAN_Student"
     },
     "control":{
         "j_min" : -0.5,

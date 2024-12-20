@@ -218,8 +218,8 @@ def main(args):
 if __name__ == "__main__":
     # * Parsing simulation configuration
     parser = argparse.ArgumentParser()
-    parser.add_argument("--scenario", type=str, default="merge2", help="[merge, follow]")
-    parser.add_argument("--object_policy", type=str, default="custom2", help="[CV, IDM]")
+    parser.add_argument("--scenario", type=str, default="merge", help="[merge, follow]")
+    parser.add_argument("--object_policy", type=str, default="IDM", help="[CV, IDM]")
     parser.add_argument("--save_gif", type=bool,
                         default=True, help="Select True to save gif")
     args = parser.parse_args()

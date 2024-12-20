@@ -72,7 +72,7 @@ class ScenarioEnv(MetaDriveEnv):
         randx = np.random.uniform(vx-0.5,vx+0.5)
         # randy = np.random.uniform(vy-0.1,vy+0.1)
 
-        xx= np.random.uniform(-2,2)
+        xx= np.random.uniform(-0.5,0.5)
         
         config["vehicle_config"] = dict(spawn_longitude = manual_config["scenario"][args.scenario]["spawn_longitude"]+xx, 
                                         spawn_lateral = manual_config["scenario"][args.scenario]["spawn_latitude"],

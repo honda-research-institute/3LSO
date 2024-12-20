@@ -93,8 +93,8 @@ class RTTO:
         # Get minimum distance and ensure non-negative
         # TODO: use different measure than min to evaluate over Npred.
         min_dist = np.min(dists, axis=(3, 4)) #(Npred, Nsample)
-        masked_dists = np.where(min_dist< 2, min_dist, np.nan)
-        min_dist = np.nanmean(masked_dists,axis=2)
+        masked_dists = np.where(min_dist< 5, min_dist, np.nan)
+        min_dist = np.nanmin(masked_dists,axis=2)
         min_dist = np.nan_to_num(min_dist, nan=1e2)
         w = np.power(1/self.confidence, np.arange(0, min_dist.shape[0], 1))
         min_dist = min_dist * np.repeat(w[:,np.newaxis],min_dist.shape[1],axis=1)
